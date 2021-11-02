@@ -1,205 +1,272 @@
-#!/usr/bin/env python3
-import curses
-import argparse
-import os
-import pathlib
-
-
-KEYS_ENTER  = (curses.KEY_ENTER, ord('\n'), ord('\r'))
-KEYS_UP     = (curses.KEY_UP,    ord('k'))
-KEYS_DOWN   = (curses.KEY_DOWN,  ord('j'))
-KEYS_SELECT = (curses.KEY_RIGHT, ord(' '))
-
-# parser = argparse.ArgumentParser()
-# parser.add_argument("--ascii", action="store_true", help="use ascii symbols to denote filesystem hiearchy")
-# parser.add_argument("--root", type=str, help="directory to explore (can't ascend up from this directory). Default is $PWD")
-# parser.add_argument("--absolute", type=str, help="use absolute paths for selection display and output")
-# parser.add_argument("--hidden", type=str, help="show hidden files and directories that are prefixed with '.'")
-# parser.add_argument("--directories-first", type=str, help="show hidden files and directories that are prefixed with '.'")
-# args = parser.parse_args()
-
-CHILD_NTH_ = "├"
-CHILD_MORE = "│"
-CHILD_LAST = "└"
-CHILD_LEAF = "─"
+#!/usr/bin/env python
+import termios, atexit, sys, os, signal, pathlib
+from textwrap import shorten
+from time import sleep
 
 """
-- Selecting child of selected folder unselects the folder (i.e. if folder isn't a nested dict but a string, it represents the folder)
-- Change view to show dir as root dir if descending inward?
-- Don't allow ascending past initial dir
+https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+ESC [    Control Sequence Introducer (CSI  is 0x9b).
 """
 
+def singleton(cls):
+  instances = {}
+  def getinstance(*args, **kwargs):
+    return instances.get(cls, cls(*args, **kwargs))
+  return getinstance
+
+
+class InteractiveTerminalApplication():
+  fd = None
+  stty = None
+  WIDTH, HEIGHT = 10,10
+
+  @staticmethod
+  def puts(s): print(s, end='')
+
+  @staticmethod
+  def _do_nothing():
+    return
+
+
+  def resize(self):
+    self.WIDTH, self.HEIGHT = os.get_terminal_size()
+
+
+  def __init__(self):
+    self.fd = sys.stdin.fileno()
+    self.stty = termios.tcgetattr(self.fd)  # save current TTY settings
 
 
 
-class InteractiveFilesystemPathSelector():
+  def close(self):
+    termios.tcsetattr(self.fd, termios.TCSADRAIN, self.stty) # restore saved TTY settings, e.g. echo & icanon
+    self.puts(
+      "\033[?25h"              # Show cursor
+      "\033[?1004l"            # Disable focus-in/out reporting method 1
+      "\033]777;focus;off\x07" # Disable focus-in/out reporting method 2 (urxvt)
+    )
+    sleep(5)
+    self.puts(
+      "\033[2J"                # Clear screen
+      "\033[?1049l"            # Switch back to primary screen buffer
+    )
 
-  screen = []
+
+  def launch(self):
+    """ Manual terminal graphics init """
+    atexit.register(self.close) # in case an unexpected exit occurs, restore the terminal back to its starting state
+    new = termios.tcgetattr(self.fd)       #
+    new[3] = new[3] & ~termios.ECHO   # disable echo, i.e. don't print input chars
+    new[3] = new[3] & ~termios.ICANON # disable canonical (line edit) mode, chars sent immediately without buffer
+      # *T*erminal *C*hange *S*hell *A*ction
+      # TCSANOW -> change occurs immediately
+      # TCSADRAIN -> await all output to be transmitted. Use when changing parameters that affect output.
+      # TCSAFLUSH -> await all output to be transmitted, and all existing unprocessed input is discarded.
+    termios.tcsetattr(self.fd, termios.TCSADRAIN, new)
+    self.puts(
+      "\033[?1004h"           # Enable focus-in/out reporting method 1
+      "\033]777;focus;on\x07" # Enable focus-in/out reporting method 2 (urxvt)
+      "\033[?25l"             # Hide cursor
+      "\033[?1049h"           # Switch to alternate screen buffer
+      "\033[0;0H"             # Move cursor to position 0,0 (top left)
+      "\033[2J"               # Clear entire screen
+    )
+    signal.signal(signal.SIGWINCH, self.resize)
+    self.resize()
+
+
+  def end(self, return_code=1, *args):
+    atexit.unregister(self.close)
+    self.close()
+    signal.signal(signal.SIGWINCH, signal.SIG_DFL) # remove signal handler
+    sys.stdout.flush()
+    sys.stderr.flush()
+    self.__exit__ = self._do_nothing
+    return return_code
+
+  def __enter__(self):
+    self.launch()
+    return self
+
+  __exit__  = end
+  # def __del__(self):
+    # ...
+
+
+
+@singleton
+class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
+
+  # class UnicodeTree:
+  #   NTH  = "├"
+  #   MORE = "│"
+  #   LAST = "└"
+  #   LEAF = "─"
+
+  # class ASCIITree:
+  #   NTH  = "+"
+  #   MORE = "|"
+  #   LAST = "`"
+  #   LEAF = "-"
+
   selected = {}
+  subselected = selected
+  path_list = []
+  path_list_last = 0
   index = 0
-  page = 0
 
-  def move():
-    window.clrtoeol()
+  @staticmethod
+  def _glob2paths_no_hidden(glob):
+    return [p for p in glob if not p.name.startswith('.')]
 
-    ...
+  @staticmethod
+  def _glob2paths_with_hidden(glob):
+    return [p for p in glob]
 
-  def line_down():
-    ...
+  @staticmethod
+  def _sort_path_list(glob):
+    return sorted(glob)
 
-  def page_up():
-    ...
+  @staticmethod
+  def _sort_path_list_directories_first(glob):
+      path_list = [i for i in glob]
+      dirs = [i for i in glob if i.is_dir()]
+      files = [i for i in glob if i.is_file()]
+      return sorted(dirs) + sorted(files)
 
-  def page_down():
-    ...
+
+  def __init__( self,
+                root = None,
+                absolute = False,
+                hidden = False,
+                directories_first = False ):
+    super().__init__()
+
+    if root:
+      root = pathlib.Path(root).expanduser()
+      if not root.exists(): raise FileNotFoundError(f"Path '{root}' does not exist")
+      if not root.is_dir(): raise NotADirectoryError(f"Path '{root}' is not a directory")
+    else:
+      root = pathlib.Path() # defaults to process $PWD
+
+    if absolute:
+      root = root.absolute()
+
+    if hidden:
+      self.glob2paths = self._glob2paths_with_hidden
+    else:
+      self.glob2paths = self._glob2paths_no_hidden
+
+    if directories_first:
+      self.sort_path_list = self._sort_path_list_directories_first
+    else:
+      self.sort_path_list = self._sort_path_list
+
+    self.index = 0
+    self.root = root
+    self.cwd = root
+    self.cd(root)
+
+    self.character_action_map = {
+      ord("Q"):  lambda e: self.end(return_code=1),
+      ord("q"):  lambda e: self.end(return_code=1),
+      ord(" "):  lambda e: self.select,
+      ord("\t"): lambda e: self.select,
+      27:        lambda e: control_character_action_map[e](), # escaped '['
+      10:        lambda e: self.end(return_code=0), # enter key
+    }
+
+    self.control_character_action_map = {            # TO-DO: page up/down
+      # ord("M"): lambda: puts("mouse"),
+      # ord("I"): lambda: puts("focus"),
+      # ord("O"): lambda: puts("unfocus"),
+      ord("A"): self.cursor_up,          # up
+      ord("B"): self.cursor_down,        # down
+      ord("C"): self.select_or_descend,  # right
+      ord("D"): self.ascend,             # left
+      ord(' '): lambda: self.end(return_code=1)  # escape
+    }
+
+
+  def cd(self, _dir):
+    if _dir=='.':
+      return
+    elif _dir=='..':
+      cwd = self.cwd.parent
+    else:
+      cwd = self.cwd/_dir
+    if not str(cwd).startswith(str(self.root)):
+      raise RecursionError("Can't leave root directory")
+    self.cwd = cwd
+    self.path_list = self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
+    self.path_list_last = len(self.path_list)-1
+
+
+  def read_key(self):
+    char, escape, event  = os.read(fd, 3).ljust(3)
+    try: self.character_action_map[char](event)
+    except KeyError: pass
+
+
+  def draw_page(self, path_list, index):
+    self.puts(
+      "\033[0;0H" # Move cursor to position 0,0 (top left)
+      "\033[2J"   # Clear entire screen
+    )
+    height = HEIGHT - 1
+    first_page = index < height
+    last_page = index > len(path_list) - height
+    view_rows = height - first_page - last_page + index
+    print(cwd)
+    print('\n'.join([ shorten(str(i), WIDTH, placeholder='...') for i in path_list[index:view_rows] ]))
+
+
+  def cursor_up(self):
+    self.index -= 1
+    if self.index < 0:
+      self.index = self.path_list_last
+
+
+  def cursor_down(self):
+    self.index += 1
+    if self.index > self.path_list_last:
+      self.index = 0
+
 
   def select(self):
-    ...
+    self.puts(__name__)
+
+
+  def select_or_descend(self):
+    self.puts(__name__)
+
+
+  def ascend(self):
+    self.puts(__name__)
 
 
 
 
-  def move_up(self):
-      self.index -= 1
-      if self.index < 0:
-          self.index = len(self.options) - 1
 
-  def move_down(self):
-      self.index += 1
-      if self.index >= len(self.options):
-          self.index = 0
 
-  def select(self):
-      if self.multiselect:
-          if self.index in self.all_selected:
-              self.all_selected.remove(self.index)
-          else:
-              self.all_selected.append(self.index)
+if __name__ == "__main__":
 
-  def get_selected(self):
-      """return the current selected option as a tuple: (option, index)
-         or as a list of tuples (in case multiselect==True)
-      """
-      if self.multiselect:
-          return_tuples = []
-          for selected in self.all_selected:
-              return_tuples.append((self.options[selected], selected))
-          return return_tuples
-      else:
-          return self.options[self.index], self.index
+  import argparse
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--root", type=str, default=None, help="Directory to explore. Default is $PWD")
+  parser.add_argument("--absolute", action="store_true", help="Use absolute paths for selection display and output")
+  parser.add_argument("--hidden", action="store_true", help="Show hidden files and directories that are prefixed with '.'")
+  parser.add_argument("--directories-first", action="store_true", help="")
+  args = parser.parse_args()
 
-  def get_title_lines(self):
-      if self.title:
-          return self.title.split('\n') + ['']
-      return []
+  with ( InteractiveFilesystemPathSelector( root              = args.root,
+                                            absolute           = args.absolute,
+                                            hidden            = args.hidden,
+                                            directories_first = args.directories_first )
+       ) as fsp:
 
-  def get_option_lines(self):
-      lines = []
-      for index, option in enumerate(self.options):
-          # pass the option through the options map of one was passed in
-          if self.options_map_func:
-              option = self.options_map_func(option)
-
-          if index == self.index:
-              prefix = self.indicator
-          else:
-              prefix = len(self.indicator) * ' '
-
-          if self.multiselect and index in self.all_selected:
-              format = curses.color_pair(1)
-              line = ('{0} {1}'.format(prefix, option), format)
-          else:
-              line = '{0} {1}'.format(prefix, option)
-          lines.append(line)
-
-      return lines
-
-  def get_lines(self):
-      title_lines = self.get_title_lines()
-      option_lines = self.get_option_lines()
-      lines = title_lines + option_lines
-      current_line = self.index + len(title_lines) + 1
-      return lines, current_line
-
-  def draw(self):
-      """draw the curses ui on the screen, handle scroll if needed"""
-      self.screen.clear()
-
-      x, y = 1, 1  # start point
-      max_y, max_x = self.screen.getmaxyx()
-      max_rows = max_y - y  # the max rows we can draw
-
-      lines, current_line = self.get_lines()
-
-      # calculate how many lines we should scroll, relative to the top
-      scroll_top = getattr(self, 'scroll_top', 0)
-      if current_line <= scroll_top:
-          scroll_top = 0
-      elif current_line - scroll_top > max_rows:
-          scroll_top = current_line - max_rows
-      self.scroll_top = scroll_top
-
-      lines_to_draw = lines[scroll_top:scroll_top+max_rows]
-
-      for line in lines_to_draw:
-          if type(line) is tuple:
-              self.screen.addnstr(y, x, line[0], max_x-2, line[1])
-          else:
-              self.screen.addnstr(y, x, line, max_x-2)
-          y += 1
-
-      self.screen.refresh()
-
-  def run_loop(self):
-      while True:
-          self.draw()
-          c = self.screen.getch()
-          if c in KEYS_UP:
-              self.move_up()
-          elif c in KEYS_DOWN:
-              self.move_down()
-          elif c in KEYS_ENTER:
-              if self.multiselect and len(self.all_selected) < self.min_selection_count:
-                  continue
-              return self.get_selected()
-          elif c in KEYS_SELECT and self.multiselect:
-              self.mark_index()
-          elif c in self.custom_handlers:
-              ret = self.custom_handlers[c](self)
-              if ret:
-                  return ret
-
-  def config_curses(self):
+    while True:
       try:
-          curses.use_default_colors() # use the default colors of the terminal
-          curses.curs_set(0) # hide the cursor
-          curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_WHITE) # add some color for multi_select
-      except:
-          curses.initscr() # Curses failed to initialize color support, eg. when TERM=vt100
-
-  def _start(self, screen):
-      self.screen = screen
-      self.config_curses()
-      return self.run_loop()
-
-  def start(self):
-      return curses.wrapper(self._start)
-
-
-def pick(*args, **kwargs):
-    """Construct and start a :class:`Picker <Picker>`.
-
-    Usage::
-
-      >>> from pick import pick
-      >>> title = 'Please choose an option: '
-      >>> options = ['option1', 'option2', 'option3']
-      >>> option, index = pick(options, title)
-    """
-    picker = Picker(*args, **kwargs)
-    return picker.start()
-
-
-title = 'Please choose an option: '
-options = ['option1', 'option2', 'option3']
-option, index = pick(options, title)
+        fsp.read_key()
+      except KeyboardInterrupt:
+        break
