@@ -21,14 +21,16 @@ class InteractiveTerminalApplication():
   WIDTH, HEIGHT = 10,10
 
   @staticmethod
-  def puts(s): print(s, end='')
+  def puts(s):
+    print(s, end='')
+    sys.stdout.flush()
 
   @staticmethod
   def _do_nothing():
     return
 
 
-  def resize(self):
+  def resize(self, *args):
     self.WIDTH, self.HEIGHT = os.get_terminal_size()
 
 
@@ -45,6 +47,8 @@ class InteractiveTerminalApplication():
       "\033[?1004l"            # Disable focus-in/out reporting method 1
       "\033]777;focus;off\x07" # Disable focus-in/out reporting method 2 (urxvt)
     )
+    sys.stdout.flush()
+    sys.stderr.flush()
     sleep(5)
     self.puts(
       "\033[2J"                # Clear screen
@@ -109,6 +113,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   #   LAST = "`"
   #   LEAF = "-"
 
+  HEIGHT_1 = 0
   selected = {}
   subselected = selected
   path_list = []
@@ -117,11 +122,18 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
   @staticmethod
   def _glob2paths_no_hidden(glob):
-    return [p for p in glob if not p.name.startswith('.')]
+    return [
+      ( p.name + '/' if p.is_dir() else p.name )
+      for p in glob
+      if not p.name.startswith('.')
+    ]
 
   @staticmethod
   def _glob2paths_with_hidden(glob):
-    return [p for p in glob]
+    return [
+      ( p.name + '/' if p.is_dir() else p.name )
+      for p in glob
+    ]
 
   @staticmethod
   def _sort_path_list(glob):
@@ -130,8 +142,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   @staticmethod
   def _sort_path_list_directories_first(glob):
       path_list = [i for i in glob]
-      dirs = [i for i in glob if i.is_dir()]
-      files = [i for i in glob if i.is_file()]
+      dirs = [i for i in glob if i.endswith('/')]
+      files = [i for i in glob if not i.endswith('/')]
       return sorted(dirs) + sorted(files)
 
 
@@ -139,7 +151,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
                 root = None,
                 absolute = False,
                 hidden = False,
-                directories_first = False ):
+                dirs_first = False ):
     super().__init__()
 
     if root:
@@ -147,7 +159,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       if not root.exists(): raise FileNotFoundError(f"Path '{root}' does not exist")
       if not root.is_dir(): raise NotADirectoryError(f"Path '{root}' is not a directory")
     else:
-      root = pathlib.Path() # defaults to process $PWD
+      root = pathlib.Path().absolute() # defaults to process $PWD
 
     if absolute:
       root = root.absolute()
@@ -157,7 +169,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     else:
       self.glob2paths = self._glob2paths_no_hidden
 
-    if directories_first:
+    if dirs_first:
       self.sort_path_list = self._sort_path_list_directories_first
     else:
       self.sort_path_list = self._sort_path_list
@@ -172,8 +184,9 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       ord("q"):  lambda e: self.end(return_code=1),
       ord(" "):  lambda e: self.select,
       ord("\t"): lambda e: self.select,
-      27:        lambda e: control_character_action_map[e](), # escaped '['
-      10:        lambda e: self.end(return_code=0), # enter key
+      27:        lambda e: self.control_character_action_map[e](), # escaped '['
+      # 10:        lambda e: self.end(return_code=0), # enter key
+      10:        lambda e: print(self.path_list), # enter key
     }
 
     self.control_character_action_map = {            # TO-DO: page up/down
@@ -186,6 +199,13 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       ord("D"): self.ascend,             # left
       ord(' '): lambda: self.end(return_code=1)  # escape
     }
+    
+
+  def resize(self, *args):
+    self.WIDTH, self.HEIGHT = os.get_terminal_size()
+    self.HEIGHT_1 = self.HEIGHT - 1
+    self.HEIGHT_2 = self.HEIGHT - 2
+    self.HEIGHT_3 = self.HEIGHT - 3
 
 
   def cd(self, _dir):
@@ -199,50 +219,59 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       raise RecursionError("Can't leave root directory")
     self.cwd = cwd
     self.path_list = self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
-    self.path_list_last = len(self.path_list)-1
+    self.path_list_len = len(self.path_list)
+    self.path_list_last = self.path_list_len - 1
 
 
   def read_key(self):
-    char, escape, event  = os.read(fd, 3).ljust(3)
+    char, escape, event  = os.read(self.fd, 3).ljust(3)
     try: self.character_action_map[char](event)
     except KeyError: pass
 
 
-  def draw_page(self, path_list, index):
+  def draw_page(self):
     self.puts(
       "\033[0;0H" # Move cursor to position 0,0 (top left)
       "\033[2J"   # Clear entire screen
     )
-    height = HEIGHT - 1
-    first_page = index < height
-    last_page = index > len(path_list) - height
-    view_rows = height - first_page - last_page + index
-    print(cwd)
-    print('\n'.join([ shorten(str(i), WIDTH, placeholder='...') for i in path_list[index:view_rows] ]))
+    page, row = divmod(self.index+1, self.HEIGHT_1)
+    row += 1
+    page_start = page * self.HEIGHT_1
+    page_end = page_start + min(self.HEIGHT_2, self.path_list_len - page_start)
+    
+    print(self.cwd, page, page_start, page_end, row, self.index)
+    prefix = '  '
+    self.puts(prefix)
+    print( ('\n'+prefix).join([ shorten(str(i), self.WIDTH, placeholder='...')
+                         for i in self.path_list[page_start:page_end]  ]) )
+    print(f"\033[{row};0H>")
+    sys.stdout.flush()
 
 
   def cursor_up(self):
     self.index -= 1
     if self.index < 0:
       self.index = self.path_list_last
+    self.draw_page()
 
 
   def cursor_down(self):
     self.index += 1
     if self.index > self.path_list_last:
       self.index = 0
+    self.draw_page()
 
 
   def select(self):
-    self.puts(__name__)
+    self.puts('select')
 
 
   def select_or_descend(self):
-    self.puts(__name__)
+    self.puts('select_or_descend')
 
 
   def ascend(self):
-    self.puts(__name__)
+    self.puts('ascend')
 
 
 
@@ -253,18 +282,17 @@ if __name__ == "__main__":
 
   import argparse
   parser = argparse.ArgumentParser()
-  parser.add_argument("--root", type=str, default=None, help="Directory to explore. Default is $PWD")
+  parser.add_argument("root", type=str, nargs='?', default=None, help="Directory to explore. Default is $PWD")
   parser.add_argument("--absolute", action="store_true", help="Use absolute paths for selection display and output")
   parser.add_argument("--hidden", action="store_true", help="Show hidden files and directories that are prefixed with '.'")
-  parser.add_argument("--directories-first", action="store_true", help="")
+  parser.add_argument("--dirs-first", action="store_true", help="")
   args = parser.parse_args()
 
-  with ( InteractiveFilesystemPathSelector( root              = args.root,
-                                            absolute           = args.absolute,
-                                            hidden            = args.hidden,
-                                            directories_first = args.directories_first )
-       ) as fsp:
-
+  with InteractiveFilesystemPathSelector( root         = args.root,
+                                          absolute     = args.absolute,
+                                          hidden       = args.hidden,
+                                          dirs_first = args.dirs_first ) as fsp:
+    fsp.draw_page()
     while True:
       try:
         fsp.read_key()
