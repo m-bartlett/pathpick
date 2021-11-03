@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import termios, atexit, sys, os, signal, pathlib
 from textwrap import shorten
-from time import sleep
+# from time import sleep
 
 """
 https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
@@ -16,9 +16,8 @@ def singleton(cls):
 
 
 class InteractiveTerminalApplication():
-  fd = None
-  stty = None
-  WIDTH, HEIGHT = 10,10
+  fd, stty = None, None
+  WIDTH, HEIGHT = 10, 10
 
   @staticmethod
   def puts(s):
@@ -39,19 +38,13 @@ class InteractiveTerminalApplication():
     self.stty = termios.tcgetattr(self.fd)  # save current TTY settings
 
 
-
   def close(self):
     termios.tcsetattr(self.fd, termios.TCSADRAIN, self.stty) # restore saved TTY settings, e.g. echo & icanon
     self.puts(
+      # "\033[2J"                # Clear screen
       "\033[?25h"              # Show cursor
       "\033[?1004l"            # Disable focus-in/out reporting method 1
       "\033]777;focus;off\x07" # Disable focus-in/out reporting method 2 (urxvt)
-    )
-    sys.stdout.flush()
-    sys.stderr.flush()
-    sleep(5)
-    self.puts(
-      "\033[2J"                # Clear screen
       "\033[?1049l"            # Switch back to primary screen buffer
     )
 
@@ -72,47 +65,33 @@ class InteractiveTerminalApplication():
       "\033]777;focus;on\x07" # Enable focus-in/out reporting method 2 (urxvt)
       "\033[?25l"             # Hide cursor
       "\033[?1049h"           # Switch to alternate screen buffer
-      "\033[0;0H"             # Move cursor to position 0,0 (top left)
       "\033[2J"               # Clear entire screen
     )
     signal.signal(signal.SIGWINCH, self.resize)
     self.resize()
 
 
-  def end(self, return_code=1, *args):
+  def end(self, *args, return_code=1, throw=False):
     atexit.unregister(self.close)
     self.close()
     signal.signal(signal.SIGWINCH, signal.SIG_DFL) # remove signal handler
-    sys.stdout.flush()
-    sys.stderr.flush()
     self.__exit__ = self._do_nothing
+    if throw:
+      raise KeyboardInterrupt
     return return_code
+
 
   def __enter__(self):
     self.launch()
     return self
 
   __exit__  = end
-  # def __del__(self):
-    # ...
+
 
 
 
 @singleton
 class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
-
-  # class UnicodeTree:
-  #   NTH  = "├"
-  #   MORE = "│"
-  #   LAST = "└"
-  #   LEAF = "─"
-
-  # class ASCIITree:
-  #   NTH  = "+"
-  #   MORE = "|"
-  #   LAST = "`"
-  #   LEAF = "-"
-
   HEIGHT_1 = 0
   selected = {}
   subselected = selected
@@ -148,10 +127,10 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   def __init__( self,
-                root = None,
-                absolute = False,
-                hidden = False,
-                dirs_first = False ):
+                root       = None,
+                absolute   = False,
+                hidden     = False,
+                dirs_first = False  ):
     super().__init__()
 
     if root:
@@ -177,11 +156,11 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.index = 0
     self.root = root
     self.cwd = root
-    self.cd(root)
+    self.ls()
 
     self.character_action_map = {
-      ord("Q"):  lambda e: self.end(return_code=1),
-      ord("q"):  lambda e: self.end(return_code=1),
+      ord("Q"):  lambda e: self.end(return_code=1, throw=True),
+      ord("q"):  lambda e: self.end(return_code=1, throw=True),
       ord(" "):  lambda e: self.select,
       ord("\t"): lambda e: self.select,
       27:        lambda e: self.control_character_action_map[e](), # escaped '['
@@ -197,7 +176,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       ord("B"): self.cursor_down,        # down
       ord("C"): self.select_or_descend,  # right
       ord("D"): self.ascend,             # left
-      ord(' '): lambda: self.end(return_code=1)  # escape
+      ord(' '): lambda: self.end(return_code=1, throw=True)  # escape
     }
     
 
@@ -218,6 +197,10 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     if not str(cwd).startswith(str(self.root)):
       raise RecursionError("Can't leave root directory")
     self.cwd = cwd
+    self.ls()
+
+
+  def ls(self):
     self.path_list = self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
     self.path_list_len = len(self.path_list)
     self.path_list_last = self.path_list_len - 1
@@ -234,17 +217,16 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       "\033[0;0H" # Move cursor to position 0,0 (top left)
       "\033[2J"   # Clear entire screen
     )
-    page, row = divmod(self.index+1, self.HEIGHT_1)
-    row += 1
+    page, row = divmod(self.index, self.HEIGHT_1)
+    row += 2
     page_start = page * self.HEIGHT_1
-    page_end = page_start + min(self.HEIGHT_2, self.path_list_len - page_start)
-    
+    page_end = page_start + self.HEIGHT_1 # min(self.HEIGHT_2, self.path_list_len - page_start)
     print(self.cwd, page, page_start, page_end, row, self.index)
     prefix = '  '
     self.puts(prefix)
-    print( ('\n'+prefix).join([ shorten(str(i), self.WIDTH, placeholder='...')
-                         for i in self.path_list[page_start:page_end]  ]) )
-    print(f"\033[{row};0H>")
+    self.puts( ('\n'+prefix).join([ shorten(str(i), self.WIDTH, placeholder='...')
+                                for i in self.path_list[page_start:page_end] ]) )
+    self.puts(f"\033[{row};0H>")
     sys.stdout.flush()
 
 
