@@ -6,12 +6,13 @@ import pathlib
 @singleton
 class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   HEIGHT_1 = 0
-  selected = {}
-  subselected = selected
+  FILE_PREFIX = '  '
+
+  selection = {}
+  subselection = selection
   path_list = []
   path_list_last = 0
   index = 0
-  FILE_PREFIX = '  '
 
   @staticmethod
   def _glob2paths_with_hidden(glob):
@@ -74,14 +75,13 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.character_action_map = {
       ord("Q"):  lambda e: self.end(return_code=1, throw=True),
       ord("q"):  lambda e: self.end(return_code=1, throw=True),
-      ord(" "):  lambda e: self.select,
-      ord("\t"): lambda e: self.select,
+      ord(" "):  lambda e: self.toggle_selected(),
+      ord("\t"): lambda e: self.toggle_selected(),
       27:        lambda e: self.control_character_action_map[e](), # escaped '['
-      # 10:        lambda e: self.end(return_code=0), # enter key
-      10:        lambda e: print(self.path_list), # enter key
+      10:        lambda e: True, # enter key
     }
 
-    self.control_character_action_map = {            # TO-DO: page up/down
+    self.control_character_action_map = {
       # ord("M"): lambda: puts("mouse"),
       # ord("I"): lambda: puts("focus"),
       # ord("O"): lambda: puts("unfocus"),
@@ -91,6 +91,9 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       ord("6"): self.page_down,          # PageDown
       ord("C"): self.select_or_descend,  # right
       ord("D"): self.ascend,             # left
+
+      # TO-DO ctrl-A is select-all in current dir
+
       ord(' '): lambda: self.end(return_code=1, throw=True)  # escape
     }
 
@@ -101,41 +104,16 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.draw_page()
 
 
-  def cd(self, _dir):
-    if _dir=='.':
-      return
-    elif _dir=='..':
-      cwd = self.cwd.parent
-    else:
-      cwd = self.cwd/_dir
-    if not str(cwd).startswith(str(self.root)):
-      raise RecursionError("Can't leave root directory")
-    self.cwd = cwd
-    self.ls()
-
-
-  def ls(self):
-    self.path_list = self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
-    self.path_list_len = len(self.path_list)
-    self.path_list_last = self.path_list_len - 1
-
-
   def read_key(self):
     char, escape, event  = os.read(self.fd, 3).ljust(3)
-    try: self.character_action_map[char](event)
-    except KeyError: pass
-
-    # try:
-    #   self.character_action_map.get(
-    #     char,
-    #     lambda e: self.puts(f"dicks")
-    #   )(event)
-    # except e:
-    #   raise self.puts(e)
+    try:
+      return self.character_action_map[char](event)
+    except KeyError:
+      return False
 
 
   def draw_header(self, page, pages, page_start, page_end, row):
-    header = f"  -  {page+1}/{pages+1} ({self.index*100//self.path_list_len}%)"
+    header = f"  -  {page+1}/{pages+1} ({self.index*100//max(1,self.path_list_last)}%)"
     path_width = self.WIDTH - len(header)
     path = str(self.cwd)
     if len(path) > path_width:
@@ -160,9 +138,13 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.draw_header(page, pages, page_start, page_end, row)
     for p in self.path_list[page_start:page_end]:
       self.puts('\n')
-      item_text = self.constrain_width(self.FILE_PREFIX + p)
-      self.puts(item_text)
-      # TO-DO highlight selected items
+      if self.subselection.get(p, False):
+        item = f" \033[36m*{p}\033[0m"
+      else:
+        item = self.FILE_PREFIX+p
+      item = self.constrain_width(item)
+      self.puts(item)
+      # TO-DO highlight selection items
       # \033[1m
     self.puts(f"\033[{row};0H>")
     sys.stdout.flush()
@@ -184,30 +166,49 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
   def page_up(self):
     self.index -= self.HEIGHT_1
-    if self.index < 0:
-      self.index = self.path_list_last + self.index
+    self.index = max(self.index, 0)
     self.draw_page()
 
 
   def page_down(self):
     self.index += self.HEIGHT_1
-    if self.index > self.path_list_last:
-      self.index =  self.index - self.path_list_last
+    self.index = min(self.index, self.path_list_last)
     self.draw_page()
 
 
-  def select(self):
-    self.puts('select')
+  def toggle_selected(self):
+    path = self.path_list[self.index]
+    self.subselection[path] = not self.subselection.get(path, False)
 
 
-  def select_or_descend(self):
-    self.puts('select_or_descend')
+  def ls(self):
+    self.path_list = self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
+    self.path_list_len = len(self.path_list)
+    self.path_list_last = max(self.path_list_len - 1, 0)
 
 
   def ascend(self):
-    self.puts('ascend')
+    cwd = self.cwd.parent
+    if str(cwd).startswith(str(self.root)):
+      pwd = self.cwd.name + '/'
+      self.cwd = cwd
+      self.ls()
+      self.index = self.path_list.index(pwd)
+      self.draw_page()
 
 
+  def descend(self):
+    path = self.path_list[self.index]
+    self.cwd /= path
+    self.ls()
+    self.index = 0
+    self.draw_page()
+
+
+  def select_or_descend(self):
+    path = self.path_list[self.index]
+    if path.endswith('/'): self.descend()
+    else: self.toggle_selected()
 
 
 
@@ -227,8 +228,13 @@ if __name__ == "__main__":
                                           hidden       = args.hidden,
                                           dirs_first = args.dirs_first ) as fsp:
     fsp.draw_page()
-    while True:
+    while not fsp.read_key():
       try:
-        fsp.read_key()
+        ...
       except KeyboardInterrupt:
         break
+    fsp.end(throw=False)
+
+    print(fsp.selection)
+    print(fsp.subselection)
+

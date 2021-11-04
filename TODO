@@ -1,0 +1,13 @@
+- draw_row and draw_header instead of updating entire page
+
+- selection toggle should trigger draw_row
+
+- selection bullet color-reset gets truncated if file is too long, colorizing the rest of the page
+
+- change subselection appropriately on ascend/descend
+
+- only keep selection leaves marked as "True"
+
+- return selection JSON on filesystem paths
+
+- don't show an empty dir, overwrite the dir name with warning message if attempting to descend into it

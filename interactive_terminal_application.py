@@ -38,12 +38,12 @@ class InteractiveTerminalApplication():
       "\033[?25h"              # Show cursor
       "\033[?1004l"            # Disable focus-in/out reporting method 1
       "\033]777;focus;off\x07" # Disable focus-in/out reporting method 2 (urxvt)
-    )
-    from time import sleep
-    sys.stderr.flush()
-    sys.stdout.flush()
-    sleep(5)
-    self.puts(
+    # )
+    # from time import sleep
+    # sys.stderr.flush()
+    # sys.stdout.flush()
+    # sleep(5)
+    # self.puts(
       "\033[?1049l"            # Switch back to primary screen buffer
     )
 
