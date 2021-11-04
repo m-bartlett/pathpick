@@ -7,7 +7,7 @@ from time import sleep
 
 @singleton
 class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
-  HEIGHT_1 = 0
+  HEIGHT_1 = 1
   UNSELECTED_FILE_PREFIX = ' '
   SELECTED_FILE_PREFIX = '+'
   CHILDREN_SELECTED_DIRECTORY_PREFIX = '-'
@@ -18,6 +18,13 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   path_list = []
   path_list_last = 0
   index = 0
+  page = 0
+  row = 0
+  pages = 1
+  page_start = 0
+  page_end = 0
+  page1 = 1
+  pages1 = 1
 
   @staticmethod
   def _glob2paths_with_hidden(glob):
@@ -121,17 +128,19 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     return s[:self.WIDTH-3]+'...' if len(s) > self.WIDTH else s
     
     
-  def get_index_info(self):
-    page, row = divmod(self.index, self.HEIGHT_1)
-    pages = self.path_list_len // self.HEIGHT_1
-    row += 2
-    page_start = page * self.HEIGHT_1
-    page_end = min(page_start + self.HEIGHT_1, self.path_list_len)
-    return (row, page_start, page_end, page, pages)
+  def update_pagination(self):
+    self.page, self.row = divmod(self.index, self.HEIGHT_1)
+    self.page_start = self.index - self.row
+    # self.page_start = self.page * self.HEIGHT_1
+    self.row += 2
+    self.pages = self.path_list_len // self.HEIGHT_1
+    self.page_end = min(self.page_start + self.HEIGHT_1, self.path_list_len)
+    self.page1 = self.page + 1
+    self.pages1 = self.pages + 1
 
 
-  def draw_header(self, row, page_start, page_end, page, pages):
-    header = f"   {page+1}/{pages+1} ({self.index*100//max(1,self.path_list_last)}%)"
+  def draw_header(self):
+    header = f"   {self.page1}/{self.pages1} ({self.index*100//max(1,self.path_list_len)}%)"
     path_width = self.WIDTH - len(header)
     path = str(self.cwd)
     if len(path) > path_width:  path = '...' + path[-(path_width-3):]
@@ -174,38 +183,37 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   def draw_page(self):
     self.cursor_home()
     self.clear_screen()
-    row, page_start, page_end, page, pages = self.get_index_info()
-    self.draw_header(row, page_start, page_end, page, pages)
+    self.draw_header()
     self.cursor_home()
-    for i in range(page_start, page_end):
+    for i in range(self.page_start, self.page_end):
       self.puts('\n')
       self.draw_row(i)
-    self.draw_cursor(row)
+    self.draw_cursor(self.row)
 
 
   def row_up(self):
     self.index -= 1
-    row, page_start, page_end, page, pages = self.get_index_info()
-    if self.index < page_start:
+    if self.index < self.page_start:
       if self.index < 0:
         self.index = self.path_list_last
+      self.update_pagination()
       self.draw_page()
     else:
       self.puts(' ')
-      self.draw_header(row, page_start, page_end, page, pages)
+      self.draw_header()
       self.draw_cursor()
 
 
   def row_down(self):
     self.index += 1
-    row, page_start, page_end, page, pages = self.get_index_info()
-    if self.index > page_end:
+    if self.index >= self.page_end:
       if self.index > self.path_list_last:
         self.index = 0
+      self.update_pagination()
       self.draw_page()
     else:
       self.puts(' ')
-      self.draw_header(*self.get_index_info())
+      self.draw_header()
       self.draw_cursor()
 
 
@@ -233,8 +241,9 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
   def ls(self):
     self.path_list = self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
-    self.path_list_len = len(self.path_list)
+    self.path_list_len = max(len(self.path_list), 0)
     self.path_list_last = max(self.path_list_len - 1, 0)
+    self.update_pagination()
 
 
   def ascend(self):
