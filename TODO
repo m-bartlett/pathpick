@@ -11,3 +11,6 @@
 - return selection JSON on filesystem paths
 
 - don't show an empty dir, overwrite the dir name with warning message if attempting to descend into it
+
+- store index info in self, update on new page
+    - if index+=1 > self.page_end -> self.update_page_info()

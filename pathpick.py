@@ -2,11 +2,16 @@
 from interactive_terminal_application import *
 import pathlib
 
+from time import sleep
+
 
 @singleton
 class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   HEIGHT_1 = 0
-  FILE_PREFIX = '  '
+  UNSELECTED_FILE_PREFIX = ' '
+  SELECTED_FILE_PREFIX = '+'
+  CHILDREN_SELECTED_DIRECTORY_PREFIX = '-'
+  ACTIVE_ROW_INDICATOR = '>'
 
   selection = {}
   subselection = selection
@@ -37,8 +42,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       dirs = [i for i in glob if i.endswith('/')]
       files = [i for i in glob if not i.endswith('/')]
       return sorted(dirs) + sorted(files)
-
-
+      
+  
   def __init__( self,
                 root       = None,
                 absolute   = False,
@@ -77,16 +82,16 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       ord("q"):  lambda e: self.end(return_code=1, throw=True),
       ord(" "):  lambda e: self.toggle_selected(),
       ord("\t"): lambda e: self.toggle_selected(),
-      27:        lambda e: self.control_character_action_map[e](), # escaped '['
+      27:        lambda e: self.escape_control_character_action_map[e](), # escaped '['
       10:        lambda e: True, # enter key
     }
 
-    self.control_character_action_map = {
+    self.escape_control_character_action_map = {
       # ord("M"): lambda: puts("mouse"),
       # ord("I"): lambda: puts("focus"),
       # ord("O"): lambda: puts("unfocus"),
-      ord("A"): self.cursor_up,          # up
-      ord("B"): self.cursor_down,        # down
+      ord("A"): self.row_up,          # up
+      ord("B"): self.row_down,        # down
       ord("5"): self.page_up,            # PageUp
       ord("6"): self.page_down,          # PageDown
       ord("C"): self.select_or_descend,  # right
@@ -112,56 +117,96 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       return False
 
 
-  def draw_header(self, page, pages, page_start, page_end, row):
-    header = f"  -  {page+1}/{pages+1} ({self.index*100//max(1,self.path_list_last)}%)"
-    path_width = self.WIDTH - len(header)
-    path = str(self.cwd)
-    if len(path) > path_width:
-      path = '...' + path[-(path_width-3):]
-    self.puts(f"\033[37;1m{path}{header}\033[0m")
-
-
   def constrain_width(self, s):
     return s[:self.WIDTH-3]+'...' if len(s) > self.WIDTH else s
-
-
-  def draw_page(self):
-    self.puts(
-      "\033[0;0H" # Move cursor to position 0,0 (top left)
-      "\033[2J"   # Clear entire screen
-    )
+    
+    
+  def get_index_info(self):
     page, row = divmod(self.index, self.HEIGHT_1)
     pages = self.path_list_len // self.HEIGHT_1
     row += 2
     page_start = page * self.HEIGHT_1
-    page_end = page_start + self.HEIGHT_1
-    self.draw_header(page, pages, page_start, page_end, row)
-    for p in self.path_list[page_start:page_end]:
+    page_end = min(page_start + self.HEIGHT_1, self.path_list_len)
+    return (row, page_start, page_end, page, pages)
+
+
+  def draw_header(self, row, page_start, page_end, page, pages):
+    header = f"   {page+1}/{pages+1} ({self.index*100//max(1,self.path_list_last)}%)"
+    path_width = self.WIDTH - len(header)
+    path = str(self.cwd)
+    if len(path) > path_width:  path = '...' + path[-(path_width-3):]
+    gap = ' ' * (path_width - len(path))
+    self.save_cursor_xy()
+    self.cursor_home()
+    self.clear_line()
+    self.puts(self.color(f"{path}{gap}{header}", bold=True, fg=7, bg=0))
+    self.restore_cursor_xy()
+
+
+  def draw_row(self, index=None):
+    if index is None:  index = self.index
+    item = self.path_list[index]
+    selection_symbol = self.SELECTED_FILE_PREFIX
+    if item.endswith('/'):
+      selected = self.subselection.get(item[:-1], {})
+      selected = True in selected.values()
+      selection_symbol = self.CHILDREN_SELECTED_DIRECTORY_PREFIX
+    else:
+      selected = self.subselection.get(item, False)
+    item = self.constrain_width('  ' + item)
+    self.clear_line()
+    if selected:
+      item = f' {selection_symbol}{item[2:]}'
+      item = self.color(item, fg=6)
+    else:
+      item = f' {self.UNSELECTED_FILE_PREFIX}{item[2:]}'
+    self.puts(item)
+
+
+  def draw_cursor(self, row=None):
+    if row is None:
+      row =(self.index % self.HEIGHT_1) + 2
+    self.cursor_xy(0,row)
+    self.puts(self.ACTIVE_ROW_INDICATOR)
+    self.cursor_x(0)
+      
+
+  def draw_page(self):
+    self.cursor_home()
+    self.clear_screen()
+    row, page_start, page_end, page, pages = self.get_index_info()
+    self.draw_header(row, page_start, page_end, page, pages)
+    self.cursor_home()
+    for i in range(page_start, page_end):
       self.puts('\n')
-      if self.subselection.get(p, False):
-        item = f" \033[36m*{p}\033[0m"
-      else:
-        item = self.FILE_PREFIX+p
-      item = self.constrain_width(item)
-      self.puts(item)
-      # TO-DO highlight selection items
-      # \033[1m
-    self.puts(f"\033[{row};0H>")
-    sys.stdout.flush()
+      self.draw_row(i)
+    self.draw_cursor(row)
 
 
-  def cursor_up(self):
+  def row_up(self):
     self.index -= 1
-    if self.index < 0:
-      self.index = self.path_list_last
-    self.draw_page()
+    row, page_start, page_end, page, pages = self.get_index_info()
+    if self.index < page_start:
+      if self.index < 0:
+        self.index = self.path_list_last
+      self.draw_page()
+    else:
+      self.puts(' ')
+      self.draw_header(row, page_start, page_end, page, pages)
+      self.draw_cursor()
 
 
-  def cursor_down(self):
+  def row_down(self):
     self.index += 1
-    if self.index > self.path_list_last:
-      self.index = 0
-    self.draw_page()
+    row, page_start, page_end, page, pages = self.get_index_info()
+    if self.index > page_end:
+      if self.index > self.path_list_last:
+        self.index = 0
+      self.draw_page()
+    else:
+      self.puts(' ')
+      self.draw_header(*self.get_index_info())
+      self.draw_cursor()
 
 
   def page_up(self):
@@ -174,11 +219,16 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.index += self.HEIGHT_1
     self.index = min(self.index, self.path_list_last)
     self.draw_page()
-
-
+    
+    
   def toggle_selected(self):
     path = self.path_list[self.index]
+    if path.endswith('/'): path = path[:-1]
     self.subselection[path] = not self.subselection.get(path, False)
+    self.draw_row()
+    self.cursor_x(0)
+    self.puts(self.ACTIVE_ROW_INDICATOR)
+    self.cursor_x(0)
 
 
   def ls(self):
@@ -189,7 +239,14 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
   def ascend(self):
     cwd = self.cwd.parent
-    if str(cwd).startswith(str(self.root)):
+    cwd_str = str(cwd)
+    
+    if cwd_str.startswith(str(self.root)):
+      key_hierarchy = cwd_str.partition(str(self.root))[2].split('/')[1:]
+      subselection = self.selection
+      for key in key_hierarchy:   # recurse from root to nesting n-1 to go up 1
+        subselection = subselection[key]  
+      self.subselection = subselection
       pwd = self.cwd.name + '/'
       self.cwd = cwd
       self.ls()
@@ -199,9 +256,15 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
   def descend(self):
     path = self.path_list[self.index]
+    key  = path[:-1] # strip trailing /
     self.cwd /= path
     self.ls()
     self.index = 0
+    subselection = self.subselection.get(key, None)
+    if type(subselection) is not dict:
+      self.subselection[key] = {}
+      subselection = self.subselection[key]
+    self.subselection = subselection
     self.draw_page()
 
 
@@ -209,20 +272,27 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     path = self.path_list[self.index]
     if path.endswith('/'): self.descend()
     else: self.toggle_selected()
+    
+    
+  def get_selection(self):
+    ...
 
 
 
 
 if __name__ == "__main__":
 
-  import argparse
+  import argparse, json
   parser = argparse.ArgumentParser()
   parser.add_argument("root", type=str, nargs='?', default=None, help="Directory to explore. Default is $PWD")
   parser.add_argument("--hidden", '-a', action="store_true", help="Show files and directories that start with '.'")
   parser.add_argument("--absolute", '-b', action="store_true", help="Use absolute paths for selection display and output")
   parser.add_argument("--dirs-first", '-d', action="store_true", help="")
+  parser.add_argument("--json", '-j', action="store_true", help="Output selection as JSON string hiearchy")
   args = parser.parse_args()
 
+  output = ''
+  
   with InteractiveFilesystemPathSelector( root         = args.root,
                                           absolute     = args.absolute,
                                           hidden       = args.hidden,
@@ -233,8 +303,10 @@ if __name__ == "__main__":
         ...
       except KeyboardInterrupt:
         break
+      except e:
+        print(e)
     fsp.end(throw=False)
-
-    print(fsp.selection)
-    print(fsp.subselection)
+    output = json.dumps(fsp.selection)
+    
+  print(output)
 
