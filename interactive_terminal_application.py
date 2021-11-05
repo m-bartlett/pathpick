@@ -56,7 +56,8 @@ class InteractiveTerminalApplication():
     if fg is not None: color.append(f"3{fg}")
     if bg is not None: color.append(f"4{bg}")
     if bold:           color.append("1")
-    if len(color):     color = f"\033[{';'.join(color)}m"
+    if len(color)>0:   color = f"\033[{';'.join(color)}m"
+    else:              color=''
     return f"{color}{text}\033[0m"
 
 
@@ -68,11 +69,9 @@ class InteractiveTerminalApplication():
       "\033[?1004l"            # Disable focus-in/out reporting method 1
       "\033]777;focus;off\x07" # Disable focus-in/out reporting method 2 (urxvt)
     )
-    from time import sleep
+    self.primary_screen()
     sys.stderr.flush()
     sys.stdout.flush()
-    sleep(5)
-    self.primary_screen()
 
 
   def launch(self):

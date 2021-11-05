@@ -1,16 +1,16 @@
-- draw_row and draw_header instead of updating entire page
+- selecting dirs crashes
 
-- selection toggle should trigger draw_row
-
-- selection bullet color-reset gets truncated if file is too long, colorizing the rest of the page
-
-- change subselection appropriately on ascend/descend
+- opening "empty" dirs crashes
 
 - only keep selection leaves marked as "True"
 
-- return selection JSON on filesystem paths
-
 - don't show an empty dir, overwrite the dir name with warning message if attempting to descend into it
 
-- store index info in self, update on new page
-    - if index+=1 > self.page_end -> self.update_page_info()
+
+
+------------------------------------------------------------------------
+- draw_row and draw_header instead of updating entire page
+- selection toggle should trigger draw_row
+- selection bullet color-reset gets truncated if file is too long, colorizing the rest of the page
+- change subselection appropriately on ascend/descend
+- return selection JSON on filesystem paths
