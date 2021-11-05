@@ -1,4 +1,4 @@
-import termios, atexit, sys, os, signal
+import termios, atexit, sys, os, signal, io
 
 """
 https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
@@ -15,13 +15,13 @@ def singleton(cls):
 class InteractiveTerminalApplication():
   fd, stty = None, None
   WIDTH, HEIGHT = 10, 10
+  
 
-  @staticmethod
-  def puts(s):
-    print(s, end='')
-    sys.stdout.flush()
-
-
+  def puts(self, s):
+    print(s, end='', file=self.tty)
+    self.tty.flush()
+    
+  
   def resize(self, *args):
     self.WIDTH, self.HEIGHT = os.get_terminal_size()
 
@@ -29,6 +29,7 @@ class InteractiveTerminalApplication():
   def __init__(self):
     self.fd = sys.stdin.fileno()
     self.stty = termios.tcgetattr(self.fd)  # save current TTY settings
+    self.tty = io.TextIOWrapper(io.FileIO(os.open('/dev/tty', os.O_RDWR), 'w'))
 
 
   def cursor_home(self):           self.puts('\033[0H')
@@ -108,9 +109,8 @@ class InteractiveTerminalApplication():
     return return_code
 
 
+  __exit__ = end
+  
   def __enter__(self):
     self.launch()
     return self
-
-
-  __exit__  = end

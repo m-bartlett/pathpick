@@ -8,9 +8,9 @@ from time import sleep
 @singleton
 class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   HEIGHT_1 = 1
-  UNSELECTED_PREFIX = ' ☐ '
-  SELECTED_PREFIX = ' 🗹 '
-  PARTIAL_SELECTED_PREFIX = ' ⮽ '
+  UNSELECTED_PREFIX = ' '
+  SELECTED_PREFIX = ' +'
+  PARTIAL_SELECTED_PREFIX = ' ±'
   SELECTED_COLOR=4
   PARTIAL_SELECTED_COLOR=6
   ACTIVE_ROW_INDICATOR = '>'
@@ -83,11 +83,11 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.ls()
 
     self.input_action_map = {
-      'Q  ':    lambda: self.end(return_code=1, throw=True),
-      'q  ':    lambda: self.end(return_code=1, throw=True),
-      '   ':    self.toggle_selected,
-      '\t  ':   self.toggle_selected,
-      '\n  ':   lambda: True,           # enter key
+         'Q  ': lambda: self.end(return_code=1, throw=True),
+         'q  ': lambda: self.end(return_code=1, throw=True),
+         '   ': self.toggle_selected,
+        '\t  ': self.toggle_selected,
+        '\n  ': lambda: True,           # enter key
       '\033  ': lambda: self.end(return_code=1, throw=True),  # escape
       '\033[A': self.row_up,            # up
       '\033[B': self.row_down,          # down
@@ -297,7 +297,11 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 if __name__ == "__main__":
 
-  import argparse, json
+  import argparse, json, sys
+  
+  def printerr(s):
+    print(s, file=sys.stderr)
+    
   parser = argparse.ArgumentParser()
   parser.add_argument("root", type=str, nargs='?', default=None, help="Directory to explore. Default is $PWD")
   parser.add_argument("--hidden", '-a', action="store_true", help="Show files and directories that start with '.'")
@@ -316,10 +320,11 @@ if __name__ == "__main__":
       try:
         ...
       except KeyboardInterrupt:
-        print('exitting...')
+        printerr('exitting...')
         break
       except e:
-        print(e)
+        printerr(e)
+        
     fsp.end(throw=False)
     output = json.dumps(fsp.selection)
 
