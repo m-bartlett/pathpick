@@ -49,8 +49,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       dirs = [i for i in glob if i.endswith('/')]
       files = [i for i in glob if not i.endswith('/')]
       return sorted(dirs) + sorted(files)
-      
-  
+
+
   def __init__( self,
                 root       = None,
                 absolute   = False,
@@ -89,8 +89,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       ord("q"):  lambda e: self.end(return_code=1, throw=True),
       ord(" "):  lambda e: self.toggle_selected(),
       ord("\t"): lambda e: self.toggle_selected(),
-      27:        lambda e: self.escape_control_character_action_map[e](), # escaped '['
-      10:        lambda e: True, # enter key
+      27:        lambda e: self.control_character_action_map[e](), # escape character \e
+      ord('\n')  lambda e: True # enter key
     }
 
     self.escape_control_character_action_map = {
@@ -126,8 +126,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
   def constrain_width(self, s):
     return s[:self.WIDTH-3]+'...' if len(s) > self.WIDTH else s
-    
-    
+
+
   def update_pagination(self):
     self.page, self.row = divmod(self.index, self.HEIGHT_1)
     self.page_start = self.index - self.row
@@ -178,7 +178,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.cursor_xy(0,row)
     self.puts(self.ACTIVE_ROW_INDICATOR)
     self.cursor_x(0)
-      
+
 
   def draw_page(self):
     self.cursor_home()
@@ -227,8 +227,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.index += self.HEIGHT_1
     self.index = min(self.index, self.path_list_last)
     self.draw_page()
-    
-    
+
+
   def toggle_selected(self):
     path = self.path_list[self.index]
     if path.endswith('/'): path = path[:-1]
@@ -249,12 +249,12 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   def ascend(self):
     cwd = self.cwd.parent
     cwd_str = str(cwd)
-    
+
     if cwd_str.startswith(str(self.root)):
       key_hierarchy = cwd_str.partition(str(self.root))[2].split('/')[1:]
       subselection = self.selection
       for key in key_hierarchy:   # recurse from root to nesting n-1 to go up 1
-        subselection = subselection[key]  
+        subselection = subselection[key]
       self.subselection = subselection
       pwd = self.cwd.name + '/'
       self.cwd = cwd
@@ -281,8 +281,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     path = self.path_list[self.index]
     if path.endswith('/'): self.descend()
     else: self.toggle_selected()
-    
-    
+
+
   def get_selection(self):
     ...
 
@@ -301,7 +301,7 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   output = ''
-  
+
   with InteractiveFilesystemPathSelector( root         = args.root,
                                           absolute     = args.absolute,
                                           hidden       = args.hidden,
@@ -316,6 +316,6 @@ if __name__ == "__main__":
         print(e)
     fsp.end(throw=False)
     output = json.dumps(fsp.selection)
-    
+
   print(output)
 
