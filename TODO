@@ -1,14 +1,13 @@
-- selecting dirs crashes
-
-- opening "empty" dirs crashes
-
-- only keep selection leaves marked as "True"
-
 - don't show an empty dir, overwrite the dir name with warning message if attempting to descend into it
+    - Make this formatting prettier :)
+
 
 
 
 ------------------------------------------------------------------------
+- opening "empty" dirs crashes
+- only keep selection leaves marked as "True"
+- selecting dirs crashes
 - draw_row and draw_header instead of updating entire page
 - selection toggle should trigger draw_row
 - selection bullet color-reset gets truncated if file is too long, colorizing the rest of the page
