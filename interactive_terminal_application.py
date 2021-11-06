@@ -1,4 +1,5 @@
 import termios, atexit, sys, os, signal, io
+import fcntl, termios, struct, shutil
 
 """
 https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
@@ -14,22 +15,47 @@ def singleton(cls):
 
 class InteractiveTerminalApplication():
   fd, stty = None, None
-  WIDTH, HEIGHT = 10, 10
+  WIDTH, HEIGHT = 80, 25
+
+
+  @staticmethod
+  def ioctl_GWINSZ(fd):
+      try: cr = struct.unpack('hh', fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234'))
+      except: return
+      return cr
+
+  @classmethod
+  def get_terminal_size(cls):
+      env = os.environ
+      cr = cls.ioctl_GWINSZ(0) or cls.ioctl_GWINSZ(1) or cls.ioctl_GWINSZ(2)
+      if not cr:
+          try:
+              fd = os.open(os.ctermid(), os.O_RDONLY)
+              cr = ioctl_GWINSZ(fd)
+              os.close(fd)
+          except:
+              pass
+      if not cr:
+          try: cr = shutil.get_terminal_size()
+          except: cr = (env.get('LINES', 25), env.get('COLUMNS', 80))
+      return int(cr[1]), int(cr[0])
   
 
   def puts(self, s):
-    print(s, end='', file=self.tty)
+    self.tty.write(s)
     self.tty.flush()
     
   
   def resize(self, *args):
-    self.WIDTH, self.HEIGHT = os.get_terminal_size()
+    # self.WIDTH, self.HEIGHT = os.get_terminal_size(sys.__stdin__.fileno())
+    self.WIDTH, self.HEIGHT = self.get_terminal_size()
 
 
   def __init__(self):
     self.fd = sys.stdin.fileno()
     self.stty = termios.tcgetattr(self.fd)  # save current TTY settings
     self.tty = io.TextIOWrapper(io.FileIO(os.open('/dev/tty', os.O_NOCTTY | os.O_RDWR), 'w'))
+    # self.tty = tty = io.TextIOWrapper(io.FileIO('/dev/tty', 'w'))
 
 
   def cursor_home(self):           self.puts('\033[0H')
@@ -71,8 +97,10 @@ class InteractiveTerminalApplication():
       "\033]777;focus;off\x07" # Disable focus-in/out reporting method 2 (urxvt)
     )
     self.primary_screen()
-    sys.stderr.flush()
-    sys.stdout.flush()
+    try:
+      sys.stderr.flush()
+      sys.stdout.flush()
+    except BrokenPipeError: pass
 
 
   def launch(self):

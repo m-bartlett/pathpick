@@ -100,7 +100,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   def resize(self, *args):
-    self.WIDTH, self.HEIGHT = os.get_terminal_size()
+    self.WIDTH, self.HEIGHT = self.get_terminal_size()
     self.HEIGHT_1 = self.HEIGHT - 1
     self.draw_page()
 
@@ -299,9 +299,6 @@ if __name__ == "__main__":
 
   import argparse, json, sys
   
-  def printerr(s):
-    print(s, file=sys.stderr)
-    
   parser = argparse.ArgumentParser()
   parser.add_argument("root", type=str, nargs='?', default=None, help="Directory to explore. Default is $PWD")
   parser.add_argument("--hidden", '-a', action="store_true", help="Show files and directories that start with '.'")
@@ -320,7 +317,7 @@ if __name__ == "__main__":
       try:
         ...
       except KeyboardInterrupt:
-        printerr('exitting...')
+        # printerr('exitting...')
         break
       except e:
         printerr(e)
