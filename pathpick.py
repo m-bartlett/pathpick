@@ -289,25 +289,37 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     else: self.toggle_selected()
 
 
-  def get_selection(self):
-    ...
+  @classmethod
+  def _nested_dict_to_path_strings(cls, dir, j):
+    paths = []
+    for k,v in j.items():
+      if v is True:
+        paths.append(f"{dir}/{k}")
+      elif isinstance(v, dict):
+        paths += cls._nested_dict_to_path_strings(f"{dir}/{k}", v)
+    return paths
+
+
+  def get_selection_paths(self):
+    return self._nested_dict_to_path_strings(str(self.root), self.selection)
+
 
 
 
 
 if __name__ == "__main__":
 
-  import argparse, json, sys
+  import argparse, json
   
   parser = argparse.ArgumentParser()
   parser.add_argument("root", type=str, nargs='?', default=None, help="Directory to explore. Default is $PWD")
   parser.add_argument("--hidden", '-a', action="store_true", help="Show files and directories that start with '.'")
   parser.add_argument("--absolute", '-b', action="store_true", help="Use absolute paths for selection display and output")
   parser.add_argument("--dirs-first", '-d', action="store_true", help="")
-  parser.add_argument("--json", '-j', action="store_true", help="Output selection as JSON string hiearchy")
+  parser.add_argument("--json", '-j', action="store_true", help="Output as JSON string hiearchy instead of list of paths")
   args = parser.parse_args()
 
-  output=''
+  selected_paths = []
   with InteractiveFilesystemPathSelector( root         = args.root,
                                           absolute     = args.absolute,
                                           hidden       = args.hidden,
@@ -317,13 +329,12 @@ if __name__ == "__main__":
       try:
         ...
       except KeyboardInterrupt:
-        # printerr('exitting...')
         break
-      except e:
-        printerr(e)
         
     fsp.end(throw=False)
-    output = json.dumps(fsp.selection)
 
-  print(output)
+    selected_paths = fsp.get_selection_paths()
 
+
+  for path in selected_paths:
+    print(path)
