@@ -31,7 +31,7 @@ class InteractiveTerminalApplication():
       if not cr:
           try:
               fd = os.open(os.ctermid(), os.O_RDONLY)
-              cr = ioctl_GWINSZ(fd)
+              cr = cls.ioctl_GWINSZ(fd)
               os.close(fd)
           except:
               pass
@@ -47,15 +47,17 @@ class InteractiveTerminalApplication():
     
   
   def resize(self, *args):
-    # self.WIDTH, self.HEIGHT = os.get_terminal_size(sys.__stdin__.fileno())
     self.WIDTH, self.HEIGHT = self.get_terminal_size()
 
 
   def __init__(self):
-    self.fd = sys.stdin.fileno()
-    self.stty = termios.tcgetattr(self.fd)  # save current TTY settings
-    self.tty = io.TextIOWrapper(io.FileIO(os.open('/dev/tty', os.O_NOCTTY | os.O_RDWR), 'w'))
-    # self.tty = tty = io.TextIOWrapper(io.FileIO('/dev/tty', 'w'))
+    fd = os.open(os.ctermid(), os.O_NOCTTY | os.O_RDWR) # open file descriptor on controlling terminal
+    os.dup2(sys.__stdin__.fileno(), fd)  # duplicate stdin stream to new file descripter
+    self.fd   = fd
+    self.stty = termios.tcgetattr(fd)  # save current TTY settings
+    self.tty  = io.TextIOWrapper(io.FileIO(fd, 'w')) # open tty as a file-like for printing
+    
+    
 
 
   def cursor_home(self):           self.puts('\033[0H')
@@ -78,14 +80,24 @@ class InteractiveTerminalApplication():
   def restore_cursor_xy(self):     self.puts("\033[u")
   
   
-  def color(self, text, fg=None, bg=None, bold=False):
-    color=[]
-    if fg is not None: color.append(f"3{fg}")
-    if bg is not None: color.append(f"4{bg}")
-    if bold:           color.append("1")
-    if len(color)>0:   color = f"\033[{';'.join(color)}m"
-    else:              color=''
-    return f"{color}{text}\033[0m"
+  def ANSI_style( self,
+                  text,
+                  fg        = None,
+                  bg        = None,
+                  bold      = False,
+                  italic    = False,
+                  underline = False,
+                  reverse   = False  ):
+    ANSI_sequence = []
+    if fg is not None: ANSI_sequence.append(f"3{fg}")
+    if bg is not None: ANSI_sequence.append(f"4{bg}")
+    if bold:           ANSI_sequence.append("1")
+    if italic:         ANSI_sequence.append("3")
+    if underline:      ANSI_sequence.append("4")
+    if reverse:        ANSI_sequence.append("7")
+    if ANSI_sequence:  ANSI_sequence = f"\033[{';'.join(ANSI_sequence)}m"
+    else:              ANSI_sequence=''
+    return f"{ANSI_sequence}{text}\033[0m"
 
 
   def close(self):

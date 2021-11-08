@@ -10,7 +10,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-  "--hidden", '-a', action="store_true",
+  "--show-hidden", '-a', action="store_true",
   help="Show files and directories that start with '.'"
 )
 
@@ -29,13 +29,25 @@ parser.add_argument(
   help="Output as JSON string hiearchy instead of list of paths"
 )
 
+parser.add_argument(
+  "--ascii", action="store_true",
+  help="Use plain ASCII instead of unicode characters to indicate selection states"
+)
+
 args = parser.parse_args()
 
-selected_paths = []
-with InteractiveFilesystemPathSelector( root       = args.root,
-                                        absolute   = args.absolute,
-                                        hidden     = args.hidden,
-                                        dirs_first = args.dirs_first ) as fsp:
+selection_output = ''
+
+with InteractiveFilesystemPathSelector( root        = args.root,
+                                        absolute    = args.absolute,
+                                        show_hidden = args.show_hidden,
+                                        dirs_first  = args.dirs_first  ) as fsp:
+  if args.ascii:
+    fsp.ACTIVE_ROW_INDICATOR    = '> '
+    fsp.UNSELECTED_PREFIX       = ' '
+    fsp.SELECTED_PREFIX         = '+ '
+    fsp.PARTIAL_SELECTED_PREFIX = '~ '
+
   fsp.draw_page()
   try:
     while not fsp.read_key():
@@ -45,8 +57,10 @@ with InteractiveFilesystemPathSelector( root       = args.root,
       
   fsp.end(throw=False)
 
-  selected_paths = fsp.get_selection_paths()
+  if args.json:
+    selection_output = json.dumps(fsp.selection)
+  else:
+    selection_output = '\n'.join(fsp.get_selection_paths())
 
 
-for path in selected_paths:
-  print(path)
+print(selection_output)
