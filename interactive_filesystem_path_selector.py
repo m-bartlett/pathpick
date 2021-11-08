@@ -20,6 +20,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   subselection = selection
   path_list = []
   path_list_last = 0
+  path_list_len = 0
+  path_list_len_divisor = 1
   index = 0
   page = 0
   row = 0
@@ -143,7 +145,11 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   def draw_header(self):
-    header = f"   {self.page1}/{self.pages1} ({(self.index+1)*100//max(1,self.path_list_len)}%)"
+    # header = f"   {self.page1}/{self.pages1} ({(self.index+1)*100//max(1,self.path_list_len)}%)"
+
+    page_string = f' - {self.page1}/{self.pages1}' if self.pages else ''
+    header = f"   {self.index + 1}/{self.path_list_len}{page_string}"
+
     path_width = self.WIDTH - len(header)
     path = str(self.cwd)
     if len(path) > path_width:  path = '...' + path[-(path_width-3):]
@@ -257,10 +263,11 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   def ls(self):
-    self.path_list = ['../'] + self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
-    # self.path_list = self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
+    # self.path_list = ['../'] + self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
+    self.path_list = self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
     self.path_list_len = max(len(self.path_list), 0)
     self.path_list_last = max(self.path_list_len - 1, 0)
+    self.path_list_len_divisor = max(self.path_list_len, 1)
 
 
   def ascend(self):
@@ -284,14 +291,12 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     path = self.path_list_get(self.index)
     key  = path[:-1] # strip trailing /
     cwd = self.cwd
-    cwd = (self.cwd/path).resolve()
+    self.cwd = (self.cwd/path).resolve()
+    self.ls()
 
-    # if self.path_list_len:
+    if not str(cwd).startswith(str(self.root)):  return
 
-    if str(cwd).startswith(str(self.root)):
-
-      self.cwd = cwd
-      self.ls()
+    if self.path_list_len:
       self.index = 0
       subselection = self.subselection.get(key, None)
       if not isinstance(subselection, dict):
@@ -299,17 +304,15 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
         subselection = self.subselection[key]
       self.subselection = subselection
       self.draw_page()
-
-
-    # else:
-    #   self.cwd = cwd
-    #   self.ls()
-    #   self.clear_line()
-    #   message = f"{self.path_list[self.index]} is empty"
-    #   message = self.truncate_to_width(message)
-    #   message = message.ljust(self.WIDTH)
-    #   self.puts( self.color(message,fg=0,bg=1, bold=True) )
-    #   self.cursor_x(0)
+    else:
+      self.cwd = cwd
+      self.ls()
+      self.clear_line()
+      message = f"{self.ACTIVE_ROW_INDICATOR}{self.path_list[self.index]} is empty"
+      message = self.truncate_to_width(message)
+      message = message.ljust(self.WIDTH)
+      self.puts( self.color(message,fg=0,bg=1, bold=True) )
+      self.cursor_x(0)
 
 
   def select_or_descend(self):

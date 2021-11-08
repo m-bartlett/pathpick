@@ -3,6 +3,6 @@
 ## About
 
 ## Install
-- `pyinstaller`
+- `stickytape`?
 
 ## Customization
