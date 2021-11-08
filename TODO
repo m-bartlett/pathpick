@@ -1,17 +1,19 @@
 - LS_COLORS
 
-- dirs don't check '/' but instead use is_dir
-- dirs are different colors
 
 - ctrl-R to refresh directory
 
 - don't show an empty dir, overwrite the dir name with warning message if attempting to descend into it
     - Make this formatting prettier :)
+    
+- terminal focus-lose styling?
 
 
 
 
 ------------------------------------------------------------------------
+- dirs don't check '/' but instead use is_dir
+- dirs are different colors
 - opening "empty" dirs crashes
 - only keep selection leaves marked as "True"
 - selecting dirs crashes

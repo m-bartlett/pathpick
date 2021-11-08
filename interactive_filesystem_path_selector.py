@@ -19,7 +19,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   ACTIVE_ROW_INDICATOR   = '>' 
   INACTIVE_ROW_INDICATOR = ' '
   
-  # These are arguments provided to self.ANSI_style(), see that function for more information
+  # These are kwargs for InteractiveTerminalApplication.ANSI_style(), see that function for more info
   BASE_ANSI_STYLE_KWARGS      = {}              # Applied first always
   FILE_ANSI_STYLE_KWARGS      = {}              # Applied if decorating a file
   DIRECTORY_ANSI_STYLE_KWARGS = {'fg'   : 3   } # For decorating a directory
@@ -206,8 +206,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     if item is None: return
 
     ANSI_style_kwargs = {} | self.BASE_ANSI_STYLE_KWARGS
-    selection_symbol = self.UNSELECTED_PREFIX
-    row_indicator = self.INACTIVE_ROW_INDICATOR
+    selection_symbol  = self.UNSELECTED_PREFIX
+    row_indicator     = self.INACTIVE_ROW_INDICATOR
 
     selected = self.subselection.get(item, False)
     if self.is_dir(item):
@@ -218,16 +218,16 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       
     if isinstance(selected, dict) and True in selected.values():
       ANSI_style_kwargs |= self.PARTIAL_ANSI_STYLE_KWARGS
-      selection_symbol  = self.PARTIAL_PREFIX
+      selection_symbol  =  self.PARTIAL_PREFIX
     elif selected is True:
       ANSI_style_kwargs |= self.SELECTED_ANSI_STYLE_KWARGS
-      selection_symbol  = self.SELECTED_PREFIX
+      selection_symbol  =  self.SELECTED_PREFIX
     else:
       selected = self.subselection.get(item, False)      
       
     if active:
       ANSI_style_kwargs |= self.ACTIVE_ANSI_STYLE_KWARGS
-      row_indicator = self.ACTIVE_ROW_INDICATOR
+      row_indicator     =  self.ACTIVE_ROW_INDICATOR
     
     item = self.truncate_to_width(f'{row_indicator}{selection_symbol}{item}')
     item = item.ljust(self.WIDTH)
@@ -235,47 +235,6 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
     self.clear_line()
     self.puts(item)
-
-
-  # def draw_row(self, index=None, active=False):
-  #   if index is None:
-  #     index = self.index
-  #   item = self.path_list_get(index)
-  #   if item is None:
-  #     return
-
-  #   color_kwargs = { "fg": self.SELECTED_COLOR }
-  #   selection_symbol = self.SELECTED_PREFIX
-  #   row_activity_indicator = self.INACTIVE_ROW_INDICATOR
-
-  #   if active:
-  #     row_activity_indicator = self.ACTIVE_ROW_INDICATOR
-  #     color_kwargs['bold'] = True
-
-  #   if self.is_dir(item):
-  #     selected = self.subselection.get(item, {})
-  #     item += '/'
-  #     if isinstance(selected, dict):
-  #       selected = True in selected.values()
-  #       selection_symbol = self.PARTIAL_PREFIX
-  #       color_kwargs['fg'] = self.PARTIAL_COLOR
-        
-  #   else:
-  #     selected = self.subselection.get(item, False)
-
-  #   if selected:
-  #     prefix = f"{row_activity_indicator}{selection_symbol}"
-      
-  #   else:
-  #     color_kwargs['fg'] = None
-  #     prefix = f"{row_activity_indicator}{self.UNSELECTED_PREFIX}"
-
-  #   item = self.truncate_to_width(f'{prefix}{item}')
-  #   item = item.ljust(self.WIDTH)
-  #   item = self.ANSI_style(item, **color_kwargs)
-
-  #   self.clear_line()
-  #   self.puts(item)
 
 
   def draw_cursor(self):

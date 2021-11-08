@@ -79,8 +79,8 @@ class InteractiveTerminalApplication():
   def restore_cursor_xy(self):     self.puts("\033[u")
   
   
-  def ANSI_style( self,
-                  text,
+  @staticmethod
+  def ANSI_style( text,
                   fg        = None,
                   bg        = None,
                   bold      = False,
