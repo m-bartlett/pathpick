@@ -43,22 +43,21 @@ with InteractiveFilesystemPathSelector( root        = args.root,
                                         show_hidden = args.show_hidden,
                                         dirs_first  = args.dirs_first  ) as fsp:
   if args.ascii:
-    fsp.ACTIVE_ROW_INDICATOR    = '> '
-    fsp.UNSELECTED_PREFIX       = ' '
-    fsp.SELECTED_PREFIX         = '+ '
-    fsp.PARTIAL_SELECTED_PREFIX = '~ '
+    fsp.ACTIVE_ROW_INDICATOR = '> '
+    fsp.UNSELECTED_PREFIX    = ' '
+    fsp.SELECTED_PREFIX      = '+ '
+    fsp.PARTIAL_PREFIX       = '~ '
 
   fsp.draw_page()
+  
   try:
-    while not fsp.read_key():
+    while fsp.read_key():
       ...
   except KeyboardInterrupt:
-    sys.exit(0)
+    sys.exit(1)
       
-  fsp.end(throw=False)
-
   if args.json:
-    selection_output = json.dumps(fsp.selection)
+    selection_output = json.dumps(fsp.selection) # TO-DO JSON-output only output True leaves
   else:
     selection_output = '\n'.join(fsp.get_selection_paths())
 

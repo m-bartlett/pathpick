@@ -16,6 +16,7 @@ def singleton(cls):
 class InteractiveTerminalApplication():
   fd, stty = None, None
   WIDTH, HEIGHT = 80, 25
+  HEIGHT_1 = 24  # cache HEIGHT - 1 for graphical calculations
 
 
   @staticmethod
@@ -24,15 +25,14 @@ class InteractiveTerminalApplication():
       except: return
       return cr
 
-  @classmethod
-  def get_terminal_size(cls):
+  def get_terminal_size(self):
       env = os.environ
-      cr = cls.ioctl_GWINSZ(0) or cls.ioctl_GWINSZ(1) or cls.ioctl_GWINSZ(2)
+      cr = self.ioctl_GWINSZ(0) or self.ioctl_GWINSZ(1) or self.ioctl_GWINSZ(2)
       if not cr:
           try:
-              fd = os.open(os.ctermid(), os.O_RDONLY)
-              cr = cls.ioctl_GWINSZ(fd)
-              os.close(fd)
+              # fd = os.open(os.ctermid(), os.O_RDONLY)
+              cr = self.ioctl_GWINSZ(self.fd)
+              # os.close(fd)
           except:
               pass
       if not cr:
@@ -48,17 +48,16 @@ class InteractiveTerminalApplication():
   
   def resize(self, *args):
     self.WIDTH, self.HEIGHT = self.get_terminal_size()
+    self.HEIGHT_1 = self.HEIGHT - 1
 
 
   def __init__(self):
-    fd = os.open(os.ctermid(), os.O_NOCTTY | os.O_RDWR) # open file descriptor on controlling terminal
-    os.dup2(sys.__stdin__.fileno(), fd)  # duplicate stdin stream to new file descripter
-    self.fd   = fd
-    self.stty = termios.tcgetattr(fd)  # save current TTY settings
-    self.tty  = io.TextIOWrapper(io.FileIO(fd, 'w')) # open tty as a file-like for printing
+    """Open a different FD for TUI stdout so this application can be piped or captured to a shell
+    variables without disrupting the TUI graphics and passing garbage ANSI sequences elsewhere"""
+    self.fd   = os.open(os.ctermid(), os.O_NOCTTY | os.O_RDWR) # open file descriptor on controlling terminal
+    self.stty = termios.tcgetattr(self.fd)  # save current TTY settings
+    self.tty  = io.TextIOWrapper(io.FileIO(self.fd, 'w')) # open tty as a file-like for printing
     
-    
-
 
   def cursor_home(self):           self.puts('\033[0H')
   def cursor_x(self, x):           self.puts(f'\033[{x}G')
@@ -112,6 +111,8 @@ class InteractiveTerminalApplication():
     try:
       sys.stderr.flush()
       sys.stdout.flush()
+      self.tty.flush()
+      self.tty.close()
     except BrokenPipeError: pass
 
 
@@ -137,16 +138,17 @@ class InteractiveTerminalApplication():
     self.resize()
 
 
-  def end(self, *args, return_code=1, throw=False):
+  def end(self, *args, throw=False):
     atexit.unregister(self.close) # prevent duplicate execution of terminal restore
     self.close()
     signal.signal(signal.SIGWINCH, signal.SIG_DFL) # remove signal handler
-    self.end    = lambda: None
-    self.close  = lambda: None
-    self.launch = lambda: None
+    self.end      = lambda: None
+    self.close    = lambda: None
+    self.launch   = lambda: None
+    self.__exit__ = lambda: None
     if throw:
       raise KeyboardInterrupt # received a user-input exit
-    return return_code
+    return False
 
 
   __exit__ = end
