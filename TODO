@@ -1,24 +1,22 @@
-- LS_COLORS
+[ ] LS_COLORS
 
+[ ] ctrl-R to refresh directory
 
-- ctrl-R to refresh directory
-
-- don't show an empty dir, overwrite the dir name with warning message if attempting to descend into it
-    - Make this formatting prettier :)
+[x] don't show an empty dir, overwrite the dir name with warning message if attempting to descend into it
+    [ ] Make this formatting prettier :)
     
-- terminal focus-lose styling?
+[ ] json only outputs true leaves
 
+[ ] import json selection for pre-populated interaction
 
-
-
-------------------------------------------------------------------------
-- dirs don't check '/' but instead use is_dir
-- dirs are different colors
-- opening "empty" dirs crashes
-- only keep selection leaves marked as "True"
-- selecting dirs crashes
-- draw_row and draw_header instead of updating entire page
-- selection toggle should trigger draw_row
-- selection bullet color-reset gets truncated if file is too long, colorizing the rest of the page
-- change subselection appropriately on ascend/descend
-- return selection JSON on filesystem paths
+-----------------------------------------------------------------------
+[x] dirs don't check '/' but instead use is_dir
+[x] dirs are different colors
+[x] opening "empty" dirs crashes
+[x] only keep selection leaves marked as "True"
+[x] selecting dirs crashes
+[x] draw_row and draw_header instead of updating entire page
+[x] selection toggle should trigger draw_row
+[x] selection bullet color-reset gets truncated if file is too long, colorizing the rest of the page
+[x] change subselection appropriately on ascend/descend
+[x] return selection JSON on filesystem paths

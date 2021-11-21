@@ -103,10 +103,6 @@ class InteractiveTerminalApplication():
     termios.tcsetattr(self.fd, termios.TCSADRAIN, self.stty) # restore saved TTY settings, e.g. echo & icanon
     self.show_cursor()
     # self.clear_screen()
-    self.puts(
-      "\033[?1004l"            # Disable focus-in/out reporting method 1
-      "\033]777;focus;off\x07" # Disable focus-in/out reporting method 2 (urxvt)
-    )
     self.primary_screen()
     try:
       sys.stderr.flush()
@@ -127,10 +123,6 @@ class InteractiveTerminalApplication():
       # TCSADRAIN -> await all output to be transmitted. Use when changing parameters that affect output.
       # TCSAFLUSH -> await all output to be transmitted, and all existing unprocessed input is discarded.
     termios.tcsetattr(self.fd, termios.TCSADRAIN, new)
-    self.puts(
-      "\033[?1004h"           # Enable focus-in/out reporting method 1
-      "\033]777;focus;on\x07" # Enable focus-in/out reporting method 2 (urxvt)
-    )
     self.hide_cursor()
     self.alt_screen()
     self.clear_screen()

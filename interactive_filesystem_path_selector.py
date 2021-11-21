@@ -13,17 +13,17 @@ class iNodeType(IntEnum):
 @singleton
 class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   HEIGHT_1 = 1
-  UNSELECTED_PREFIX      = ' ☐ '
-  SELECTED_PREFIX        = ' ☑ '
-  PARTIAL_PREFIX         = ' ☒ '
-  ACTIVE_ROW_INDICATOR   = '>' 
+  UNSELECTED_PREFIX      = ' ☐  '
+  SELECTED_PREFIX        = ' ☑  '
+  PARTIAL_PREFIX         = ' ☒  '
+  ACTIVE_ROW_INDICATOR   = '> '
   INACTIVE_ROW_INDICATOR = ' '
   
   # These are kwargs for InteractiveTerminalApplication.ANSI_style(), see that function for more info
   BASE_ANSI_STYLE_KWARGS      = {}              # Applied first always
   FILE_ANSI_STYLE_KWARGS      = {}              # Applied if decorating a file
   DIRECTORY_ANSI_STYLE_KWARGS = {'fg'   : 3   } # For decorating a directory
-  SELECTED_ANSI_STYLE_KWARGS  = {'fg'   : 4   } # For decorating a selected item
+  SELECTED_ANSI_STYLE_KWARGS  = {'fg'   : 2   } # For decorating a selected item
   PARTIAL_ANSI_STYLE_KWARGS   = {'fg'   : 6   } # For decorating a directory with selected children
   ACTIVE_ANSI_STYLE_KWARGS    = {'bold' : True} # For decorating the active row the cursor is on
 
