@@ -14,29 +14,31 @@ parser.add_argument(
   help="Show files and directories that start with '.'"
 )
 
-parser.add_argument(
+parser.add_argument(                          # TODO: implement
   "--relative", '-r', action="store_true",
   help="Instead of absolute paths, format output as relative paths from the current working directory"
 )
-# TODO: implement
+
 
 parser.add_argument(
   "--dirs-first", '-d', action="store_true",
   help="List directories at the top of the page instead of sorted with file names"
 )
 
-parser.add_argument(
+parser.add_argument(                          # TODO: implement
   "--json", '-j', action="store_true",
   help="Return output as JSON string hiearchy instead of a newline-separated list of paths"
 )
 
-parser.add_argument(
+
+parser.add_argument(                          # TODO: implement
   "--load-json", '-J', type=str, default=None, metavar="<JSON FILE OR STRING>",
   help="""
-Load JSON selection (the output of a session with --json) as the active selection in an interactive session.
-This option combined with --json is intended to serve as a selection caching feature, so the user can preserve a filesystem selection to reuse later or serve as a template for common selections.
-"""
+    Load JSON selection (the output of a session with --json) as the active selection in an interactive session.
+    This option used with --json is intended to serve as a selection caching feature, so the user can preserve a filesystem selection to reuse later or serve as a template for common selections.
+  """
 )
+
 
 parser.add_argument(
   "--ascii", action="store_true",
