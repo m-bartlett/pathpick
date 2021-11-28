@@ -4,12 +4,14 @@
 
 [x] don't show an empty dir, overwrite the dir name with warning message if attempting to descend into it
     [ ] Make this formatting prettier :)
+    [ ] '<dir> is empty' does not work if dir name is wider than terminal
     
 [ ] json only outputs true leaves
 
 [ ] import json selection for pre-populated interaction
 
 [ ] selection symbols not a bool, but --output-type with restricted options which is the the keys of the dict mapping output-type to respective symbols
+
 
 -----------------------------------------------------------------------
 [x] dirs don't check '/' but instead use is_dir
