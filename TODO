@@ -8,7 +8,7 @@
     
 [ ] json only outputs true leaves
 
-[ ] import json selection for pre-populated interaction
+[ ] import json for pre-populated selection in interactive session
 
 [ ] selection symbols not a bool, but --output-type with restricted options which is the the keys of the dict mapping output-type to respective symbols
 
