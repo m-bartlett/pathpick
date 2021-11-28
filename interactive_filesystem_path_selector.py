@@ -1,7 +1,6 @@
 from interactive_terminal_application import *
 import pathlib
 from enum import IntEnum, auto
-# import enum
 
 from time import sleep
 
@@ -13,18 +12,18 @@ class iNodeType(IntEnum):
 @singleton
 class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   HEIGHT_1 = 1
-  UNSELECTED_PREFIX      = ' ☐  '
-  SELECTED_PREFIX        = ' ☑  '
-  PARTIAL_PREFIX         = ' ☒  '
-  ACTIVE_ROW_INDICATOR   = '> '
+  UNSELECTED_PREFIX      = ' '
+  SELECTED_PREFIX        = ' '
+  PARTIAL_PREFIX         = ' '
+  ACTIVE_ROW_INDICATOR   = ' '
   INACTIVE_ROW_INDICATOR = ' '
   
   # These are kwargs for InteractiveTerminalApplication.ANSI_style(), see that function for more info
   BASE_ANSI_STYLE_KWARGS      = {}              # Applied first always
   FILE_ANSI_STYLE_KWARGS      = {}              # Applied if decorating a file
-  DIRECTORY_ANSI_STYLE_KWARGS = {'fg'   : 3   } # For decorating a directory
-  SELECTED_ANSI_STYLE_KWARGS  = {'fg'   : 2   } # For decorating a selected item
-  PARTIAL_ANSI_STYLE_KWARGS   = {'fg'   : 6   } # For decorating a directory with selected children
+  DIRECTORY_ANSI_STYLE_KWARGS = {'fg': 3  } # For decorating a directory
+  SELECTED_ANSI_STYLE_KWARGS  = {'fg': 2, 'bold' : True } # For decorating a selected item
+  PARTIAL_ANSI_STYLE_KWARGS   = {'fg': 6, 'bold' : True } # For decorating a directory with selected children
   ACTIVE_ANSI_STYLE_KWARGS    = {'bold' : True} # For decorating the active row the cursor is on
 
   selection    = {}
@@ -74,21 +73,19 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
   def __init__( self,
                 root        = None,
-                absolute    = False,
                 show_hidden = False,
                 dirs_first  = False ):
     super().__init__()
 
     if root and root != '.':
 
-      root = pathlib.Path(root).expanduser()
+      root = pathlib.Path(root).expanduser().resolve()
       if not root.exists(): raise FileNotFoundError( f"Path '{root}' does not exist")
       if not root.is_dir(): raise NotADirectoryError(f"Path '{root}' is not a directory")
     else:
-      root = pathlib.Path().absolute() # defaults to process $PWD
+      root = pathlib.Path() # defaults to process $PWD
 
-    if absolute:
-      root = root.absolute()
+    root = root.absolute()
 
     if show_hidden:
       self.glob2paths = self._glob2paths_with_hidden
@@ -186,7 +183,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   def draw_header(self):
     # header = f"   {self.page1}/{self.pages1} ({(self.index+1)*100//max(1,self.path_list_len)}%)"
 
-    page_string = f' | {self.page1}/{self.pages1} ' if self.pages else ''
+    page_string = f' : {self.page1}/{self.pages1} ' if self.pages else ''
     header = f"   {self.index + 1}/{self.path_list_len}{page_string}"
 
     path_width = self.WIDTH - len(header)

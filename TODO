@@ -9,6 +9,8 @@
 
 [ ] import json selection for pre-populated interaction
 
+[ ] selection symbols not a bool, but --output-type with restricted options which is the the keys of the dict mapping output-type to respective symbols
+
 -----------------------------------------------------------------------
 [x] dirs don't check '/' but instead use is_dir
 [x] dirs are different colors

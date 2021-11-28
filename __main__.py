@@ -15,9 +15,10 @@ parser.add_argument(
 )
 
 parser.add_argument(
-  "--absolute", '-b', action="store_true",
-  help="Use absolute paths for selection display and output"
+  "--relative", '-r', action="store_true",
+  help="Instead of absolute paths, format output as relative paths from the current working directory"
 )
+# TODO: implement
 
 parser.add_argument(
   "--dirs-first", '-d', action="store_true",
@@ -26,12 +27,20 @@ parser.add_argument(
 
 parser.add_argument(
   "--json", '-j', action="store_true",
-  help="Output as JSON string hiearchy instead of list of paths"
+  help="Return output as JSON string hiearchy instead of a newline-separated list of paths"
+)
+
+parser.add_argument(
+  "--load-json", '-J', type=str, default=None, metavar="<JSON FILE OR STRING>",
+  help="""
+Load JSON selection (the output of a session with --json) as the active selection in an interactive session.
+This option combined with --json is intended to serve as a selection caching feature, so the user can preserve a filesystem selection to reuse later or serve as a template for common selections.
+"""
 )
 
 parser.add_argument(
   "--ascii", action="store_true",
-  help="Use plain ASCII instead of unicode characters to indicate selection states"
+  help="Use plain ASCII characters instead of unicode characters for symbols indicating selection states in an interactive session"
 )
 
 args = parser.parse_args()
@@ -39,7 +48,6 @@ args = parser.parse_args()
 selection_output = ''
 
 with InteractiveFilesystemPathSelector( root        = args.root,
-                                        absolute    = args.absolute,
                                         show_hidden = args.show_hidden,
                                         dirs_first  = args.dirs_first  ) as fsp:
   if args.ascii:
