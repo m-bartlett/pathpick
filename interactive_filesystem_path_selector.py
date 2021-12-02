@@ -21,9 +21,9 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   # These are kwargs for InteractiveTerminalApplication.ANSI_style(), see that function for more info
   BASE_ANSI_STYLE_KWARGS      = {}              # Applied first always
   FILE_ANSI_STYLE_KWARGS      = {}              # Applied if decorating a file
-  DIRECTORY_ANSI_STYLE_KWARGS = {'fg': 3  } # For decorating a directory
-  SELECTED_ANSI_STYLE_KWARGS  = {'fg': 2, 'bold' : True } # For decorating a selected item
-  PARTIAL_ANSI_STYLE_KWARGS   = {'fg': 6, 'bold' : True } # For decorating a directory with selected children
+  DIRECTORY_ANSI_STYLE_KWARGS = {'fg': 3  }     # For decorating a directory
+  SELECTED_ANSI_STYLE_KWARGS  = {'fg': 6, 'bold' : True } # For decorating a selected item
+  PARTIAL_ANSI_STYLE_KWARGS   = {'fg': 4, 'bold' : True } # For decorating a directory with selected children
   ACTIVE_ANSI_STYLE_KWARGS    = {'bold' : True} # For decorating the active row the cursor is on
 
   selection    = {}
@@ -46,7 +46,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   def _glob2paths_with_hidden(glob):
     # return [( p.name+'/' if p.is_dir() else p.name ) for p in glob ]
     return { p.name: iNodeType.DIRECTORY if p.is_dir() else iNodeType.FILE
-             for p in glob}
+             for p in glob }
 
   @classmethod
   def _glob2paths_no_hidden(cls, glob):
@@ -78,7 +78,6 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     super().__init__()
 
     if root and root != '.':
-
       root = pathlib.Path(root).expanduser().resolve()
       if not root.exists(): raise FileNotFoundError( f"Path '{root}' does not exist")
       if not root.is_dir(): raise NotADirectoryError(f"Path '{root}' is not a directory")
@@ -105,17 +104,23 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.input_action_map = {
          'Q  ': lambda: self.end(throw=True),
          'q  ': lambda: self.end(throw=True),
+         'k  ': self.row_up,
+         'j  ': self.row_down,
+         'l  ': self.select_or_descend,
+         'h  ': self.ascend,
          '   ': self.toggle_selected,
         '\t  ': self.toggle_selected,
-        '\n  ': lambda: False,           # enter key
+        '\n  ': lambda: False,          # enter key
       '\033  ': lambda: self.end(throw=True),  # escape
       '\033[A': self.row_up,            # up
       '\033[B': self.row_down,          # down
-      '\033[5': self.page_up,           # PageUp
-      '\033[6': self.page_down,         # PageDown
       '\033[C': self.select_or_descend, # right
       '\033[D': self.ascend,            # left
-      # b'\x01  ': self.select_all       # TO-DO ctrl-A is select-all in current dir
+      '\033[5': self.page_up,           # PageUp
+      '\033[6': self.page_down,         # PageDown
+      '\x01  ': self.toggle_all_selected, # ctrl-a
+      '\x12  ': self.refresh,           # ctrl-r
+      '\x08  ': self.toggle_list_hidden # ctrl-h
     }
 
 
@@ -156,7 +161,6 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       
 
   def ls(self):
-    # self.path_list = ['../'] + self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
     self.path_list, self.path_list_types = (
       self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
     )
@@ -172,7 +176,6 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       self.index = self.path_list_last
     self.page, self.row = divmod(self.index, self.HEIGHT_1)
     self.page_start = self.index - self.row
-    # self.page_start = self.page * self.HEIGHT_1
     self.row += 2
     self.pages = self.path_list_len // self.HEIGHT_1
     self.page_end = min(self.page_start + self.HEIGHT_1, self.path_list_len)
@@ -181,11 +184,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   def draw_header(self):
-    # header = f"   {self.page1}/{self.pages1} ({(self.index+1)*100//max(1,self.path_list_len)}%)"
-
     page_string = f' : {self.page1}/{self.pages1} ' if self.pages else ''
-    header = f"   {self.index + 1}/{self.path_list_len}{page_string}"
-
+    header = f"   {self.index + (self.path_list_len>0)}/{self.path_list_len}{page_string}"
     path_width = self.WIDTH - len(header)
     path = str(self.cwd)
     if len(path) > path_width:  path = '...' + path[-(path_width-3):]
@@ -295,6 +295,19 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.draw_cursor()
 
 
+  def toggle_all_selected(self): # TO-DO: implement
+    ...
+
+
+  def toggle_list_hidden(self): # TO-DO: implement
+    ...
+
+
+  def refresh(self):
+    self.ls()
+    self.draw_page()
+
+
   def ascend(self):
     cwd = self.cwd.parent
     cwd_str = str(cwd)
@@ -317,26 +330,14 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     cwd = self.cwd
     self.cwd = (self.cwd/path).resolve()
     self.ls()
-
     if not str(cwd).startswith(str(self.root)):  return
-
-    if self.path_list_len:
-      self.index = 0
-      subselection = self.subselection.get(path, None)
-      if not isinstance(subselection, dict):
-        self.subselection[path] = {}
-        subselection = self.subselection[path]
-      self.subselection = subselection
-      self.draw_page()
-    else:
-      self.cwd = cwd
-      self.ls()
-      self.clear_line()
-      message = f"{self.ACTIVE_ROW_INDICATOR}{self.path_list[self.index]} is empty"
-      message = self.truncate_to_width(message)
-      message = message.ljust(self.WIDTH)
-      self.puts( self.ANSI_style(message,fg=0,bg=1, bold=True) )
-      self.cursor_x(0)
+    self.index = 0
+    subselection = self.subselection.get(path, None)
+    if not isinstance(subselection, dict):
+      self.subselection[path] = {}
+      subselection = self.subselection[path]
+    self.subselection = subselection
+    self.draw_page()
 
 
   def select_or_descend(self):

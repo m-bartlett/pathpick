@@ -19,7 +19,6 @@ parser.add_argument(                          # TODO: implement
   help="Instead of absolute paths, format output as relative paths from the current working directory"
 )
 
-
 parser.add_argument(
   "--dirs-first", '-d', action="store_true",
   help="List directories at the top of the page instead of sorted with file names"
@@ -30,7 +29,6 @@ parser.add_argument(                          # TODO: implement
   help="Return output as JSON string hiearchy instead of a newline-separated list of paths"
 )
 
-
 parser.add_argument(                          # TODO: implement
   "--load-json", '-J', type=str, default=None, metavar="<JSON FILE OR STRING>",
   help="""
@@ -38,7 +36,6 @@ parser.add_argument(                          # TODO: implement
     This option used with --json is intended to serve as a selection caching feature, so the user can preserve a filesystem selection to reuse later or serve as a template for common selections.
   """
 )
-
 
 parser.add_argument(
   "--ascii", action="store_true",
