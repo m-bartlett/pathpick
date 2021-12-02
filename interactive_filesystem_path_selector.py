@@ -1,8 +1,7 @@
 from interactive_terminal_application import *
-import pathlib
 from enum import IntEnum, auto
-
-from time import sleep
+import pathlib
+import re
 
 class iNodeType(IntEnum):
   FILE = auto()
@@ -17,6 +16,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   PARTIAL_PREFIX         = ' '
   ACTIVE_ROW_INDICATOR   = ' '
   INACTIVE_ROW_INDICATOR = ' '
+  TRUNCATED_TEXT_INDICATOR = ''
   
   # These are kwargs for InteractiveTerminalApplication.ANSI_style(), see that function for more info
   BASE_ANSI_STYLE_KWARGS      = {}              # Applied first always
@@ -25,6 +25,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   SELECTED_ANSI_STYLE_KWARGS  = {'fg': 6, 'bold' : True } # For decorating a selected item
   PARTIAL_ANSI_STYLE_KWARGS   = {'fg': 4, 'bold' : True } # For decorating a directory with selected children
   ACTIVE_ANSI_STYLE_KWARGS    = {'bold' : True} # For decorating the active row the cursor is on
+
+  ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
   selection    = {}
   subselection = selection
@@ -76,6 +78,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
                 show_hidden = False,
                 dirs_first  = False ):
     super().__init__()
+
+    self.truncate_symbol_length = len(self.TRUNCATED_TEXT_INDICATOR)
 
     if root and root != '.':
       root = pathlib.Path(root).expanduser().resolve()
@@ -138,8 +142,15 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     return True
 
 
+  def strip_ANSI(self, s):
+    return self.ANSI_REGEX.sub('', s)
+
+
   def truncate_to_width(self, s):
-    return s[:self.WIDTH-3]+'...' if len(s) > self.WIDTH else s
+    if len(self.strip_ANSI(s)) > self.WIDTH:
+      return s[:self.WIDTH-self.truncate_symbol_length]+self.TRUNCATED_TEXT_INDICATOR
+    else:
+      return s
 
 
   def path_list_get(self, index=None):
