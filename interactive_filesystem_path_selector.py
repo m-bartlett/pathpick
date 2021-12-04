@@ -16,7 +16,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   PARTIAL_PREFIX         = ' '
   ACTIVE_ROW_INDICATOR   = ' '
   INACTIVE_ROW_INDICATOR = ' '
-  TRUNCATED_TEXT_INDICATOR = ''
+  TRUNCATED_TEXT_INDICATOR = '...'
   
   # These are kwargs for InteractiveTerminalApplication.ANSI_style(), see that function for more info
   BASE_ANSI_STYLE_KWARGS      = {}              # Applied first always
@@ -44,6 +44,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   page_start = 0
   page_end   = 0
 
+
   @staticmethod
   def _glob2paths_with_hidden(glob):
     # return [( p.name+'/' if p.is_dir() else p.name ) for p in glob ]
@@ -63,6 +64,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     sorted_path_list_dict  = { k: path_list_dict[k] for k in sorted_path_list }
     sorted_path_list_types = list(sorted_path_list_dict.values())
     return sorted_path_list, sorted_path_list_types
+
 
   @staticmethod
   def _sort_path_list_directories_first(path_list_dict):
@@ -142,12 +144,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     return True
 
 
-  def strip_ANSI(self, s):
-    return self.ANSI_REGEX.sub('', s)
-
-
   def truncate_to_width(self, s):
-    if len(self.strip_ANSI(s)) > self.WIDTH:
+    if len(self.ANSI_REGEX.sub('', s)) > self.WIDTH:
       return s[:self.WIDTH-self.truncate_symbol_length]+self.TRUNCATED_TEXT_INDICATOR
     else:
       return s
@@ -199,7 +197,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     header = f"   {self.index + (self.path_list_len>0)}/{self.path_list_len}{page_string}"
     path_width = self.WIDTH - len(header)
     path = str(self.cwd)
-    if len(path) > path_width:  path = '...' + path[-(path_width-3):]
+    if len(path) > path_width:
+      path = self.TRUNCATED_TEXT_INDICATOR + path[-(path_width-self.truncate_symbol_length):]
     gap = ' ' * (path_width - len(path))
     self.save_cursor_xy()
     self.cursor_home()
