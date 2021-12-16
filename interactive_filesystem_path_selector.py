@@ -1,12 +1,7 @@
 from interactive_terminal_application import *
-from enum import IntEnum, auto
 import pathlib
 import re
 
-class iNodeType(IntEnum):
-  FILE = auto()
-  DIRECTORY = auto()
-  
 
 @singleton
 class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
@@ -31,7 +26,6 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   selection    = {}
   subselection = selection
   path_list             = []
-  path_list_types       = []
   path_list_last        = 0
   path_list_len         = 0
   path_list_len_divisor = 1
@@ -46,33 +40,25 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   @staticmethod
-  def _glob2paths_with_hidden(glob):
-    # return [( p.name+'/' if p.is_dir() else p.name ) for p in glob ]
-    return { p.name: iNodeType.DIRECTORY if p.is_dir() else iNodeType.FILE
-             for p in glob }
-
-  @classmethod
-  def _glob2paths_no_hidden(cls, glob):
-    # return [p for p in cls._glob2paths_with_hidden(glob) if not p.startswith('.') ]
-    return { k: v 
-             for k,v in cls._glob2paths_with_hidden(glob).items()
-             if not k.startswith('.') }
-
-  @staticmethod
-  def _sort_path_list(path_list_dict):
-    sorted_path_list       = sorted(path_list_dict.keys())
-    sorted_path_list_dict  = { k: path_list_dict[k] for k in sorted_path_list }
-    sorted_path_list_types = list(sorted_path_list_dict.values())
-    return sorted_path_list, sorted_path_list_types
+  def _iterdir2paths_with_hidden(iterdir):
+    return list(iterdir)
 
 
   @staticmethod
-  def _sort_path_list_directories_first(path_list_dict):
-    dirs  = { k:v for k,v in path_list_dict.items() if v is iNodeType.DIRECTORY }
-    files = { k:v for k,v in path_list_dict.items() if v is iNodeType.FILE }
-    sorted_path_list       = sorted(dirs.keys()) + sorted(files.keys())
-    sorted_path_list_types = list(dirs.values()) + list(files.values())
-    return sorted_path_list, sorted_path_list_types
+  def _iterdir2paths_no_hidden(iterdir):
+    return [p for p in iterdir if not p.name.startswith('.') ]
+
+
+  @staticmethod
+  def _sort_path_list(path_list):
+    return sorted(path_list)
+
+
+  @staticmethod
+  def _sort_path_list_directories_first(path_list):
+    dirs  = [ d for d in path_list if d.is_dir() ]
+    files = [ f for f in path_list if not f.is_dir() ]
+    return sorted(dirs) + sorted(files)
 
 
   def __init__( self,
@@ -93,9 +79,9 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     root = root.absolute()
 
     if show_hidden:
-      self.glob2paths = self._glob2paths_with_hidden
+      self.iterdir2paths = self._iterdir2paths_with_hidden
     else:
-      self.glob2paths = self._glob2paths_no_hidden
+      self.iterdir2paths = self._iterdir2paths_no_hidden
 
     if dirs_first:
       self.sort_path_list = self._sort_path_list_directories_first
@@ -116,17 +102,18 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
          'h  ': self.ascend,
          '   ': self.toggle_selected,
         '\t  ': self.toggle_selected,
-        '\n  ': lambda: False,          # enter key
+        '\n  ': lambda: False,                 # enter key
       '\033  ': lambda: self.end(throw=True),  # escape
-      '\033[A': self.row_up,            # up
-      '\033[B': self.row_down,          # down
-      '\033[C': self.select_or_descend, # right
-      '\033[D': self.ascend,            # left
-      '\033[5': self.page_up,           # PageUp
-      '\033[6': self.page_down,         # PageDown
-      '\x01  ': self.toggle_all_selected, # ctrl-a
-      '\x12  ': self.refresh,           # ctrl-r
-      '\x08  ': self.toggle_list_hidden # ctrl-h
+      '\033[A': self.row_up,                   # up
+      '\033[B': self.row_down,                 # down
+      '\033[C': self.select_or_descend,        # right
+      '\033[D': self.ascend,                   # left
+      '\033[5': self.page_up,                  # pageup
+      '\033[6': self.page_down,                # pagedown
+      '\x01  ': self.toggle_all_selected,      # ctrl-a
+      '\x0d  ': self.toggle_list_dirs_first,   # ctrl-d
+      '\x08  ': self.toggle_list_hidden,       # ctrl-h
+      '\x12  ': self.refresh,                  # ctrl-r
     }
 
 
@@ -145,7 +132,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   def truncate_to_width(self, s):
-    if len(self.ANSI_REGEX.sub('', s)) > self.WIDTH:
+    # if len(self.ANSI_REGEX.sub('', s)) > self.WIDTH:
+    if len(s) > self.WIDTH:
       return s[:self.WIDTH-self.truncate_symbol_length]+self.TRUNCATED_TEXT_INDICATOR
     else:
       return s
@@ -158,21 +146,19 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       return None
 
 
-  def is_dir(self, path=None):
-    try:
-      if path is None:
-        index = self.index
-      else:
-        index = self.path_list.index(path)
-      return self.path_list_types[index] is iNodeType.DIRECTORY
-    except (ValueError, IndexError):  
-      return (self.cwd / path).resolve().is_dir()
+  # def is_dir(self, path=None):
+  #   try:
+  #     if path is None:
+  #       index = self.index
+  #     else:
+  #       index = self.path_list.index(path)
+  #     return self.path_list_types[index] is iNodeType.DIRECTORY
+  #   except (ValueError, IndexError):
+  #     return (self.cwd / path).resolve().is_dir()
       
 
   def ls(self):
-    self.path_list, self.path_list_types = (
-      self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
-    )
+    self.path_list = self.sort_path_list(  self.iterdir2paths( self.cwd.iterdir() )  )
     self.path_list_len = max(len(self.path_list), 0)
     self.path_list_last = max(self.path_list_len - 1, 0)
     self.path_list_len_divisor = max(self.path_list_len, 1)
@@ -215,11 +201,12 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     ANSI_style_kwargs = {} | self.BASE_ANSI_STYLE_KWARGS
     selection_symbol  = self.UNSELECTED_PREFIX
     row_indicator     = self.INACTIVE_ROW_INDICATOR
+    suffix = ''
 
-    selected = self.subselection.get(item, False)
-    if self.is_dir(item):
+    selected = self.subselection.get(item.name, False)
+    if item.is_dir():
       ANSI_style_kwargs |= self.DIRECTORY_ANSI_STYLE_KWARGS
-      item += '\033[0m/'
+      suffix = '\033[0m/'
     else:
       ANSI_style_kwargs |= self.FILE_ANSI_STYLE_KWARGS
       
@@ -230,13 +217,13 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       ANSI_style_kwargs |= self.SELECTED_ANSI_STYLE_KWARGS
       selection_symbol  =  self.SELECTED_PREFIX
     else:
-      selected = self.subselection.get(item, False)      
+      selected = self.subselection.get(item.name, False)     # TO-DO needed?
       
     if active:
       ANSI_style_kwargs |= self.ACTIVE_ANSI_STYLE_KWARGS
       row_indicator     =  self.ACTIVE_ROW_INDICATOR
     
-    item = self.truncate_to_width(f'{row_indicator}{selection_symbol}{item}')
+    item = self.truncate_to_width(f'{row_indicator}{selection_symbol}{item.name}')
     item = item.ljust(self.WIDTH)
     item = self.ANSI_style(item, **ANSI_style_kwargs)
 
@@ -298,9 +285,8 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   def toggle_selected(self):
-    path = self.path_list_get(self.index)
+    path = self.path_list_get(self.index).name
     if path is None: return
-    if path.endswith('/'): path = path[:-1]
     self.subselection[path] = not self.subselection.get(path, False)
     self.draw_cursor()
 
@@ -310,6 +296,10 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   def toggle_list_hidden(self): # TO-DO: implement
+    ...
+
+
+  def toggle_list_dirs_first(self):
     ...
 
 
@@ -328,24 +318,25 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       for key in key_hierarchy:   # recurse from root to nesting n-1 to go up 1
         subselection = subselection[key]
       self.subselection = subselection
-      pwd = self.cwd.name
+      _cwd = self.cwd
       self.cwd = cwd
       self.ls()
-      self.index = self.path_list.index(pwd)
+      self.index = self.path_list.index(_cwd)
       self.draw_page()
 
 
   def descend(self):
-    path = self.path_list_get(self.index)
+    newdir = self.path_list_get(self.index)
+    newdirname = newdir.name
     cwd = self.cwd
-    self.cwd = (self.cwd/path).resolve()
+    self.cwd = newdir.resolve()
     self.ls()
     if not str(cwd).startswith(str(self.root)):  return
     self.index = 0
-    subselection = self.subselection.get(path, None)
+    subselection = self.subselection.get(newdirname, None)
     if not isinstance(subselection, dict):
-      self.subselection[path] = {}
-      subselection = self.subselection[path]
+      self.subselection[newdirname] = {}
+      subselection = self.subselection[newdirname]
     self.subselection = subselection
     self.draw_page()
 
@@ -353,7 +344,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   def select_or_descend(self):
     path = self.path_list_get(self.index)
     if path is None: return
-    if self.is_dir(path): self.descend()
+    if path.is_dir(): self.descend()
     else: self.toggle_selected()
 
 
