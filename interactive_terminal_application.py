@@ -86,7 +86,8 @@ class InteractiveTerminalApplication():
                   bold      = False,
                   italic    = False,
                   underline = False,
-                  reverse   = False  ):
+                  reverse   = False,
+                  clear     = True ):
     ANSI_sequence = []
     if fg is not None: ANSI_sequence.append(f"3{fg}")
     if bg is not None: ANSI_sequence.append(f"4{bg}")
@@ -96,7 +97,8 @@ class InteractiveTerminalApplication():
     if reverse:        ANSI_sequence.append("7")
     if ANSI_sequence:  ANSI_sequence = f"\033[{';'.join(ANSI_sequence)}m"
     else:              ANSI_sequence=''
-    return f"{ANSI_sequence}{text}\033[0m"
+    if clear:          text += "\033[0m"
+    return f"{ANSI_sequence}{text}"
 
 
   def close(self):

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from interactive_filesystem_path_selector import *
-import argparse, json
+from config import read_user_config_file
+import argparse, json, sys
 
 parser = argparse.ArgumentParser()
 
@@ -42,7 +43,17 @@ parser.add_argument(
   help="Use plain ASCII characters instead of unicode characters for symbols indicating selection states in an interactive session"
 )
 
+parser.add_argument(
+  "--verbose", "-v", action="store_true",
+  help="print extra information during process execution for debugging"
+)
+
 args = parser.parse_args()
+
+user_config_file, config = read_user_config_file()
+
+if args.verbose:
+  print(f"Loaded config from {user_config_file}", file=sys.stderr)
 
 selection_output = ''
 

@@ -1,6 +1,5 @@
 [ ] compare file path lengths before applying ANSI to avoid ANSI-stripping to compare lengths
 
-[ ] Pass paths around instead of strings of paths?
 
 [ ] ctrl-H to toggle showing hidden directories
     
@@ -10,7 +9,7 @@
 
 [ ] selection symbols no longer a bool, but --symbols/-S with restricted options which is the the keys of the dict mapping output-type to respective symbols (ascii, nerdfont, unicode - default=ascii)
 
-[ ] make file to install as pip or stand alone executable (zip with a hashbang)
+[ ] makefile to install as pip or stand alone executable (zip with a hashbang)
 
 [ ] convert between json and pathlist outputs
 
@@ -28,3 +27,4 @@
 [x] selection bullet color-reset gets truncated if file is too long, colorizing the rest of the page
 [x] change subselection appropriately on ascend/descend
 [x] return selection JSON on filesystem paths
+[x] Pass pathlib.Paths around instead of strings of paths
