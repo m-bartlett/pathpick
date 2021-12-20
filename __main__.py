@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from interactive_filesystem_path_selector import *
+from interactive_filesystem_path_selector import InteractiveFilesystemPathSelector
 from config import read_user_config_file
 import argparse, json, sys
 
@@ -48,6 +48,11 @@ parser.add_argument(
   help="print extra information during process execution for debugging"
 )
 
+parser.add_argument(
+  "--config", type=str,
+  help="path to style configuration file"
+)
+
 args = parser.parse_args()
 
 user_config_file, config = read_user_config_file()
@@ -59,12 +64,8 @@ selection_output = ''
 
 with InteractiveFilesystemPathSelector( root        = args.root,
                                         show_hidden = args.show_hidden,
-                                        dirs_first  = args.dirs_first  ) as fsp:
-  if args.ascii:
-    fsp.ACTIVE_ROW_INDICATOR = '> '
-    fsp.UNSELECTED_PREFIX    = ' '
-    fsp.SELECTED_PREFIX      = '+ '
-    fsp.PARTIAL_PREFIX       = '~ '
+                                        dirs_first  = args.dirs_first,
+                                        styles      = config  ) as fsp:
 
   fsp.draw_page()
   

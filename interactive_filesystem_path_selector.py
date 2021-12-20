@@ -1,52 +1,37 @@
-from interactive_terminal_application import *
 import pathlib
 import re
+import style
+from filetype import filetype
+from interactive_terminal_application import *
 
 
 @singleton
 class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
-  HEIGHT_1 = 1
-  UNSELECTED_PREFIX      = ' '
-  SELECTED_PREFIX        = ' '
-  PARTIAL_PREFIX         = ' '
-  ACTIVE_ROW_INDICATOR   = ' '
-  INACTIVE_ROW_INDICATOR = ' '
-  TRUNCATED_TEXT_INDICATOR = '...'
-  
-  # These are kwargs for InteractiveTerminalApplication.ANSI_style(), see that function for more info
-  BASE_ANSI_STYLE_KWARGS      = {}              # Applied first always
-  FILE_ANSI_STYLE_KWARGS      = {}              # Applied if decorating a file
-  DIRECTORY_ANSI_STYLE_KWARGS = {'fg': 3  }     # For decorating a directory
-  SELECTED_ANSI_STYLE_KWARGS  = {'fg': 6, 'bold' : True } # For decorating a selected item
-  PARTIAL_ANSI_STYLE_KWARGS   = {'fg': 4, 'bold' : True } # For decorating a directory with selected children
-  ACTIVE_ANSI_STYLE_KWARGS    = {'bold' : True} # For decorating the active row the cursor is on
-
-  ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-
   selection    = {}
   subselection = selection
   path_list             = []
   path_list_last        = 0
   path_list_len         = 0
-  path_list_len_divisor = 1
-  index  = 0
-  row    = 0
-  page   = 0
-  page1  = 1
-  pages  = 1
-  pages1 = 1
+  # path_list_len_divisor = 1
+  index      = 0
+  row        = 0
+  page       = 0
+  page1      = 1
+  pages      = 1
+  pages1     = 1
   page_start = 0
   page_end   = 0
+  styles     = {}
 
 
   @staticmethod
-  def _iterdir2paths_with_hidden(iterdir):
-    return list(iterdir)
+  def _iter2paths_with_hidden(it):
+    return list(it)
 
 
   @staticmethod
-  def _iterdir2paths_no_hidden(iterdir):
-    return [p for p in iterdir if not p.name.startswith('.') ]
+  def _iter2paths_no_hidden(it):
+    return [p for p in it if not p.name.startswith('.')]
 
 
   @staticmethod
@@ -64,10 +49,12 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   def __init__( self,
                 root        = None,
                 show_hidden = False,
-                dirs_first  = False ):
+                dirs_first  = False,
+                styles      = {} ):
     super().__init__()
 
-    self.truncate_symbol_length = len(self.TRUNCATED_TEXT_INDICATOR)
+    for k, v in styles.items():
+      self.styles[k] = style.Style(**v)
 
     if root and root != '.':
       root = pathlib.Path(root).expanduser().resolve()
@@ -79,9 +66,9 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     root = root.absolute()
 
     if show_hidden:
-      self.iterdir2paths = self._iterdir2paths_with_hidden
+      self.iter2paths = self._iter2paths_with_hidden
     else:
-      self.iterdir2paths = self._iterdir2paths_no_hidden
+      self.iter2paths = self._iter2paths_no_hidden
 
     if dirs_first:
       self.sort_path_list = self._sort_path_list_directories_first
@@ -131,10 +118,10 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     return True
 
 
-  def truncate_to_width(self, s):
-    # if len(self.ANSI_REGEX.sub('', s)) > self.WIDTH:
-    if len(s) > self.WIDTH:
-      return s[:self.WIDTH-self.truncate_symbol_length]+self.TRUNCATED_TEXT_INDICATOR
+  def truncate_to_width(self, s, width):
+    if len(s) > width:
+      truncated = self.styles['truncated']
+      return s[:width-truncated.suffix_length] + truncated.suffix
     else:
       return s
 
@@ -142,26 +129,14 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   def path_list_get(self, index=None):
     if index is None:  index = self.index
     try:               return self.path_list[index]
-    except IndexError:
-      return None
+    except IndexError: return None
 
-
-  # def is_dir(self, path=None):
-  #   try:
-  #     if path is None:
-  #       index = self.index
-  #     else:
-  #       index = self.path_list.index(path)
-  #     return self.path_list_types[index] is iNodeType.DIRECTORY
-  #   except (ValueError, IndexError):
-  #     return (self.cwd / path).resolve().is_dir()
-      
 
   def ls(self):
-    self.path_list = self.sort_path_list(  self.iterdir2paths( self.cwd.iterdir() )  )
+    self.path_list = self.sort_path_list(  self.iter2paths( self.cwd.iterdir() )  )
     self.path_list_len = max(len(self.path_list), 0)
     self.path_list_last = max(self.path_list_len - 1, 0)
-    self.path_list_len_divisor = max(self.path_list_len, 1)
+    # self.path_list_len_divisor = max(self.path_list_len, 1)
 
 
   def paginate(self):
@@ -189,46 +164,39 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.save_cursor_xy()
     self.cursor_home()
     self.clear_line()
-    self.puts(self.ANSI_style(f"{path}{gap}{header}", bold=True, reverse=True))
+    self.puts(self.styles['header'].format(f"{path}{gap}{header}"))
     self.restore_cursor_xy()
     
     
   def draw_row(self, index=None, active=False):
     if index is None: index = self.index
-    item = self.path_list_get(index)
-    if item is None: return
+    path = self.path_list_get(index)
+    if path is None: return
+    path_name = path.name
 
-    ANSI_style_kwargs = {} | self.BASE_ANSI_STYLE_KWARGS
-    selection_symbol  = self.UNSELECTED_PREFIX
-    row_indicator     = self.INACTIVE_ROW_INDICATOR
-    suffix = ''
-
-    selected = self.subselection.get(item.name, False)
-    if item.is_dir():
-      ANSI_style_kwargs |= self.DIRECTORY_ANSI_STYLE_KWARGS
-      suffix = '\033[0m/'
-    else:
-      ANSI_style_kwargs |= self.FILE_ANSI_STYLE_KWARGS
+    selected = self.subselection.get(path_name, False)
+    this_style = style.Style()
+    this_style.apply(self.styles[filetype(path)])
       
     if isinstance(selected, dict) and True in selected.values():
-      ANSI_style_kwargs |= self.PARTIAL_ANSI_STYLE_KWARGS
-      selection_symbol  =  self.PARTIAL_PREFIX
+      this_style.apply(self.styles['children_selected'])
     elif selected is True:
-      ANSI_style_kwargs |= self.SELECTED_ANSI_STYLE_KWARGS
-      selection_symbol  =  self.SELECTED_PREFIX
+      this_style.apply(self.styles['selected'])
     else:
-      selected = self.subselection.get(item.name, False)     # TO-DO needed?
+      this_style.apply(self.styles['unselected'])
       
     if active:
-      ANSI_style_kwargs |= self.ACTIVE_ANSI_STYLE_KWARGS
-      row_indicator     =  self.ACTIVE_ROW_INDICATOR
+      this_style.apply(self.styles['active'])
+    else:
+      this_style.apply(self.styles['inactive'])
     
-    item = self.truncate_to_width(f'{row_indicator}{selection_symbol}{item.name}')
-    item = item.ljust(self.WIDTH)
-    item = self.ANSI_style(item, **ANSI_style_kwargs)
+    width = self.WIDTH - this_style.length
+    text = self.truncate_to_width(path_name, width)
+    # text = text.ljust(width)
+    text = this_style.format(text)
 
     self.clear_line()
-    self.puts(item)
+    self.puts(text)
 
 
   def draw_cursor(self):
