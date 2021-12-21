@@ -59,6 +59,7 @@ user_config_file, config = read_user_config_file()
 
 if args.verbose:
   print(f"Loaded config from {user_config_file}", file=sys.stderr)
+  print(config)
 
 selection_output = ''
 

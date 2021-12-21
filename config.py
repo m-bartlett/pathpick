@@ -1,28 +1,7 @@
-# TO-DO: cache suffix/prefix length within config object, use for length calculations
-# TO-DO: "compile" ansi style formattable string within config object
-
 from configparser import ConfigParser
 from types        import SimpleNamespace
 from os           import getenv
 from pathlib      import Path
-
-
-# class DefaultNamespace(SimpleNamespace):
-#   def __init__(self, default=None, **kwargs):
-#     super().__init__(**kwargs)
-#     self.default = default
-
-#   def __getattr__(self, key):
-#     try:    return super().__getattr__(self, key)
-#     except: return self.default
-
-#   @classmethod
-#   def from_dict(_class, dictionary, default=None):  # recursive dict(s) to namespace(s)
-#     for k, v in dictionary.items():
-#       if isinstance(v, dict):
-#         dictionary[k] = _class.from_dict(v, default=default)
-#     return _class(default=default, **dictionary)
-
 
 EXECUTABLE_DIRECTORY = Path(__file__).resolve(strict=True).parent
 EXECUTABLE_NAME = EXECUTABLE_DIRECTORY.name

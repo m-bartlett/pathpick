@@ -18,12 +18,12 @@ class Style():
                 prefix     = '',
                 foreground = None,
                 background = None,
-                bold       = False,
-                italic     = False,
-                underline  = False,
-                reverse    = False,
+                bold       = None,
+                italic     = None,
+                underline  = None,
+                reverse    = None,
                 reset      = True,
-                suffix     = '', **kwargs ):
+                suffix     = '' ):
     self.prefix     = prefix
     self.foreground = foreground
     self.background = background
@@ -33,6 +33,7 @@ class Style():
     self.reverse    = reverse
     self.reset      = reset
     self.suffix     = suffix
+    self.template   = ''
     self.update_template()
 
 
@@ -59,19 +60,20 @@ class Style():
 
 
   def apply(self, other):
-    self.prefix = other.prefix + self.prefix
-    self.suffix = other.suffix + self.suffix
-    self.foreground = (
-      getattr(other, "foreground", None) or getattr(self, "foreground", None)
-    )
-    self.background = (
-      getattr(other, "background", None) or getattr(self, "background", None)
-    )
+    if other.foreground is not None: self.foreground = other.foreground
+    if other.background is not None: self.background = other.background
+    self.prefix    = (other.prefix or "") + (self.prefix or "")
+    self.suffix    = (self.suffix or "") + (other.suffix or "")
+    self.bold      = other.bold
+    self.italic    = other.italic
+    self.underline = other.underline
+    self.reverse   = other.reverse
+    self.reset     = other.reset
     self.update_template()
 
 
   def __repr__(self):
-    return str(self.__dict__)
+    return f"({','.join(f'{k}={v}' for k,v in self.__dict__.items())})"
 
 
   def __len__(self):

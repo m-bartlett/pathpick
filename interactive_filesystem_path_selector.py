@@ -1,5 +1,4 @@
 import pathlib
-import re
 import style
 from filetype import filetype
 from interactive_terminal_application import *
@@ -97,10 +96,10 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       '\033[D': self.ascend,                   # left
       '\033[5': self.page_up,                  # pageup
       '\033[6': self.page_down,                # pagedown
-      '\x01  ': self.toggle_all_selected,      # ctrl-a
-      '\x04  ': self.toggle_list_dirs_first,   # ctrl-d
-      '\x08  ': self.toggle_list_hidden,       # ctrl-h
-      '\x12  ': self.refresh,                  # ctrl-r
+      '\x01  ': self.select_all,               # ctrl-a
+      '\x04  ': self.toggle_show_dirs_first,   # ctrl-d
+      '\x08  ': self.toggle_show_hidden,       # ctrl-h
+      '\x12  ': self.refresh_manual,           # ctrl-r
     }
 
 
@@ -194,7 +193,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     selected = self.subselection.get(path_name, False)
     this_style = style.Style()
     this_style.apply(self.styles[filetype(path)])
-      
+
     if isinstance(selected, dict) and True in selected.values():
       this_style.apply(self.styles['children_selected'])
     elif selected is True:
@@ -206,7 +205,9 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       this_style.apply(self.styles['active'])
     else:
       this_style.apply(self.styles['inactive'])
-    
+
+    this_style.reset = True
+    this_style.update_template()
     width = self.WIDTH - this_style.length
     text = self.truncate_right_to_width(path_name, width)
     text = this_style.format(text)
@@ -268,6 +269,19 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.draw_page()
 
 
+  def refresh(self):
+    active_element = self.path_list_get()
+    self.ls()
+    try: self.index = self.path_list.index(active_element)
+    except ValueError: pass
+    self.draw_page()
+
+
+  def refresh_manual(self):
+    self.refresh()
+    self.draw_header_alert("Directory listing refreshed")
+
+
   def toggle_selected(self):
     path = self.path_list_get(self.index).name
     if path is None: return
@@ -275,21 +289,40 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.draw_cursor()
 
 
-  def toggle_all_selected(self): # TO-DO: implement
-    self.draw_header_alert("Selection toggled")
+  def select_all(self):
+    all_selected = all(self.subselection.get(path.name, False) for path in self.path_list)
+    if all_selected:
+      boolean, message = False, "Deselect all"
+    else:
+      boolean, message = True, "Select all"
+    # for k in self.subselection:
+      # self.subselection[k] = boolean
+    for path in self.path_list:
+      self.subselection[path.name] = boolean
+    self.refresh()
+    self.draw_header_alert(message)
 
 
-  def toggle_list_hidden(self): # TO-DO: implement
-    self.draw_header_alert("Showing hidden files toggled")
+  def toggle_show_hidden(self):
+    if self.iter2paths is self._iter2paths_with_hidden:
+      self.iter2paths = self._iter2paths_no_hidden
+      message = "Hidden files ignored"
+    else:
+      self.iter2paths = self._iter2paths_with_hidden
+      message = "Hidden files displayed"
+    self.refresh()
+    self.draw_header_alert(message)
 
 
-  def toggle_list_dirs_first(self):
-    self.draw_header_alert("Showing directories first toggled")
-
-
-  def refresh(self):
-    self.ls()
-    self.draw_page()
+  def toggle_show_dirs_first(self):
+    if self.sort_path_list is self._sort_path_list:
+      self.sort_path_list = self._sort_path_list_directories_first
+      message = "Directories listed first"
+    else:
+      self.sort_path_list = self._sort_path_list
+      message = "All files alphabetical"
+    self.refresh()
+    self.draw_header_alert(message)
 
 
   def ascend(self):
@@ -324,8 +357,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.subselection = subselection
     self.draw_page()
     if self.path_list_len == 0:
-      self.draw_header_alert(f"{newdirname} is an empty directory")
-
+      self.draw_header_alert(f"{newdirname} is empty")
 
 
   def select_or_descend(self):
