@@ -20,6 +20,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   pages1     = 1
   page_start = 0
   page_end   = 0
+  page_info  = ''
   styles     = {}
 
 
@@ -157,6 +158,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.page_end = min(self.page_start + self.HEIGHT_1, self.path_list_len)
     self.page1 = self.page + 1
     self.pages1 = self.pages + 1
+    self.page_info = f' : {self.page1}/{self.pages1} ' if self.pages > 0 else ''
 
 
   def draw_header(self, message):
@@ -169,8 +171,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
   def draw_header_info(self):
     _style    = self.styles['header']
-    page_info = f' : {self.page1}/{self.pages1} ' if self.pages else ''  # TO-DO: only render this tring on page-change
-    row_info  = f"   {self.index + (self.path_list_len>0)}/{self.path_list_len}{page_info}"
+    row_info  = f"   {self.index + (self.path_list_len>0)}/{self.path_list_len}{self.page_info}"
     width     = self.WIDTH - len(row_info) - _style.length
     path      = self.truncate_left_to_width(str(self.cwd), width)
     gap       = ' ' * (width - len(path))
