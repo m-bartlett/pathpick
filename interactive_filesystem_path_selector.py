@@ -141,9 +141,10 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   def ls(self):
-    self.path_list = self.sort_path_list(  self.iter2paths( self.cwd.iterdir() )  )
-    self.path_list_len = max(len(self.path_list), 0)
+    self.path_list      = self.sort_path_list(  self.iter2paths( self.cwd.iterdir() )  )
+    self.path_list_len  = max(len(self.path_list), 0)
     self.path_list_last = max(self.path_list_len - 1, 0)
+    self.path_list_any  = self.path_list_len > 0
 
 
   def paginate(self):
@@ -171,7 +172,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
   def draw_header_info(self):
     _style    = self.styles['header']
-    row_info  = f"   {self.index + (self.path_list_len>0)}/{self.path_list_len}{self.page_info}"
+    row_info  = f"   {self.index + self.path_list_any}/{self.path_list_len}{self.page_info}"
     width     = self.WIDTH - len(row_info) - _style.length
     path      = self.truncate_left_to_width(str(self.cwd), width)
     gap       = ' ' * (width - len(path))
@@ -357,7 +358,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       subselection = self.subselection[newdirname]
     self.subselection = subselection
     self.draw_page()
-    if self.path_list_len == 0:
+    if not self.path_list_any:
       self.draw_header_alert(f"{newdirname} is empty")
 
 
