@@ -7,12 +7,12 @@ from interactive_terminal_application import *
 
 @singleton
 class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
-  selection    = {}
-  subselection = selection
-  path_list             = []
-  path_list_last        = 0
-  path_list_len         = 0
-  # path_list_len_divisor = 1
+  header_message = None
+  selection      = {}
+  subselection   = selection
+  path_list      = []
+  path_list_last = 0
+  path_list_len  = 0
   index      = 0
   row        = 0
   page       = 0
@@ -98,15 +98,10 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       '\033[5': self.page_up,                  # pageup
       '\033[6': self.page_down,                # pagedown
       '\x01  ': self.toggle_all_selected,      # ctrl-a
-      '\x0d  ': self.toggle_list_dirs_first,   # ctrl-d
+      '\x04  ': self.toggle_list_dirs_first,   # ctrl-d
       '\x08  ': self.toggle_list_hidden,       # ctrl-h
       '\x12  ': self.refresh,                  # ctrl-r
     }
-
-
-  def resize(self, *args):
-    super().resize()
-    self.draw_page()
 
 
   def read_key(self):
@@ -118,10 +113,23 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     return True
 
 
-  def truncate_to_width(self, s, width):
+  def resize(self, *args):
+    super().resize()
+    self.draw_page()
+
+
+  def truncate_right_to_width(self, s, width):
     if len(s) > width:
       truncated = self.styles['truncated']
       return s[:width-truncated.suffix_length] + truncated.suffix
+    else:
+      return s
+
+
+  def truncate_left_to_width(self, s, width):
+    if len(s) > width:
+      truncated = self.styles['truncated']
+      return truncated.prefix + s[-width+truncated.prefix_length:]
     else:
       return s
 
@@ -136,7 +144,6 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.path_list = self.sort_path_list(  self.iter2paths( self.cwd.iterdir() )  )
     self.path_list_len = max(len(self.path_list), 0)
     self.path_list_last = max(self.path_list_len - 1, 0)
-    # self.path_list_len_divisor = max(self.path_list_len, 1)
 
 
   def paginate(self):
@@ -153,19 +160,29 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.pages1 = self.pages + 1
 
 
-  def draw_header(self):
-    page_string = f' : {self.page1}/{self.pages1} ' if self.pages else ''
-    header = f"   {self.index + (self.path_list_len>0)}/{self.path_list_len}{page_string}"
-    path_width = self.WIDTH - len(header)
-    path = str(self.cwd)
-    if len(path) > path_width:
-      path = self.TRUNCATED_TEXT_INDICATOR + path[-(path_width-self.truncate_symbol_length):]
-    gap = ' ' * (path_width - len(path))
+  def draw_header(self, message):
     self.save_cursor_xy()
     self.cursor_home()
     self.clear_line()
-    self.puts(self.styles['header'].format(f"{path}{gap}{header}"))
+    self.puts(message)
     self.restore_cursor_xy()
+
+
+  def draw_header_info(self):
+    _style    = self.styles['header']
+    page_info = f' : {self.page1}/{self.pages1} ' if self.pages else ''  # TO-DO: only render this tring on page-change
+    row_info  = f"   {self.index + (self.path_list_len>0)}/{self.path_list_len}{page_info}"
+    width     = self.WIDTH - len(row_info) - _style.length
+    path      = self.truncate_left_to_width(str(self.cwd), width)
+    gap       = ' ' * (width - len(path))
+    self.draw_header(_style.format(f"{path}{gap}{row_info}"))
+
+
+  def draw_header_alert(self, message):
+    _style  = self.styles['header']
+    width   = self.WIDTH - _style.length
+    message = self.truncate_left_to_width(message, width).center(width)
+    self.draw_header(_style.format(message))
     
     
   def draw_row(self, index=None, active=False):
@@ -191,8 +208,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       this_style.apply(self.styles['inactive'])
     
     width = self.WIDTH - this_style.length
-    text = self.truncate_to_width(path_name, width)
-    # text = text.ljust(width)
+    text = self.truncate_right_to_width(path_name, width)
     text = this_style.format(text)
 
     self.clear_line()
@@ -210,7 +226,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.paginate()
     self.cursor_home()
     self.clear_screen()
-    self.draw_header()
+    self.draw_header_info()
     self.cursor_home()
     for i in range(self.page_start, self.page_end):
       self.puts('\n')
@@ -225,7 +241,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     if self.index < self.page_start:
       self.draw_page()
     else:
-      self.draw_header()
+      self.draw_header_info()
       self.draw_cursor()
 
 
@@ -236,7 +252,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     if self.index >= self.page_end:
       self.draw_page()
     else:
-      self.draw_header()
+      self.draw_header_info()
       self.draw_cursor()
 
 
@@ -260,15 +276,15 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   def toggle_all_selected(self): # TO-DO: implement
-    ...
+    self.draw_header_alert("Selection toggled")
 
 
   def toggle_list_hidden(self): # TO-DO: implement
-    ...
+    self.draw_header_alert("Showing hidden files toggled")
 
 
   def toggle_list_dirs_first(self):
-    ...
+    self.draw_header_alert("Showing directories first toggled")
 
 
   def refresh(self):
@@ -307,6 +323,9 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       subselection = self.subselection[newdirname]
     self.subselection = subselection
     self.draw_page()
+    if self.path_list_len == 0:
+      self.draw_header_alert(f"{newdirname} is an empty directory")
+
 
 
   def select_or_descend(self):
