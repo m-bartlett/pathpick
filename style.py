@@ -64,11 +64,11 @@ class Style():
     if other.background is not None: self.background = other.background
     self.prefix    = (other.prefix or "") + (self.prefix or "")
     self.suffix    = (self.suffix or "") + (other.suffix or "")
-    self.bold      = other.bold
-    self.italic    = other.italic
-    self.underline = other.underline
-    self.reverse   = other.reverse
-    self.reset     = other.reset
+    self.bold      = other.bold      or self.bold
+    self.italic    = other.italic    or self.italic
+    self.underline = other.underline or self.underline
+    self.reverse   = other.reverse   or self.reverse
+    self.reset     = other.reset     or self.reset
     self.update_template()
 
 
