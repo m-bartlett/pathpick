@@ -4,14 +4,14 @@
   alt="pathpick logo" 
   align="center" 
   height="100" 
-  src="https://user-images.githubusercontent.com/85039141/147015255-216579f5-b9a5-4b4f-a929-86682f80bd6f.png#gh-light-mode-only"
+  src="https://user-images.githubusercontent.com/85039141/147018893-0603c52f-fffe-40c2-b0d9-aad1f644a17c.png#gh-light-mode-only"
 >
 <img 
   title="pathpick logo" 
   alt="pathpick logo" 
   align="center" 
   height="100" 
-  src="https://user-images.githubusercontent.com/85039141/147015262-b6536ef4-5907-4c53-99a5-7bc6c4916347.png#gh-dark-mode-only"
+  src="https://user-images.githubusercontent.com/85039141/147018911-b48a1dcb-6b70-479e-a416-ab409a1eb4be.png#gh-dark-mode-only"
 >
 </p>
 
