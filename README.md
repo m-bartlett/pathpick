@@ -1,11 +1,14 @@
-<!-- https://user-images.githubusercontent.com/85039141/147000426-4fc14df8-5faa-497d-82bf-9e9de83c9b72.png -->
 <p align="center">
-  <img
-       title="pathpick logo"
-       alt="pathpick logo"
-       src="https://user-images.githubusercontent.com/85039141/147003874-e254018a-e1d6-48e6-9fce-c168764bc426.png"
-  >
+  <picture>
+    <source 
+      srcset="https://user-images.githubusercontent.com/85039141/147015262-b6536ef4-5907-4c53-99a5-7bc6c4916347.png" 
+      media="(prefers-color-scheme: dark)">
+      <a href="https://polypheny.org/">
+      <img title="pathpick logo" alt="pathpick logo" align="center" height="100" src="https://user-images.githubusercontent.com/85039141/147015255-216579f5-b9a5-4b4f-a929-86682f80bd6f.png">
+      </a>
+  </picture>
 </p>
+
 
 ## About
 Hello
