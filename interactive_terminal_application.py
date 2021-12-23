@@ -78,26 +78,6 @@ class InteractiveTerminalApplication():
   def save_cursor_xy(self):        self.puts("\033[s")
   def restore_cursor_xy(self):     self.puts("\033[u")
   
-  
-  @staticmethod
-  def ANSI_style( text,
-                  fg        = None,
-                  bg        = None,
-                  bold      = False,
-                  italic    = False,
-                  underline = False,
-                  reverse   = False  ):
-    ANSI_sequence = []
-    if fg is not None: ANSI_sequence.append(f"3{fg}")
-    if bg is not None: ANSI_sequence.append(f"4{bg}")
-    if bold:           ANSI_sequence.append("1")
-    if italic:         ANSI_sequence.append("3")
-    if underline:      ANSI_sequence.append("4")
-    if reverse:        ANSI_sequence.append("7")
-    if ANSI_sequence:  ANSI_sequence = f"\033[{';'.join(ANSI_sequence)}m"
-    else:              ANSI_sequence=''
-    return f"{ANSI_sequence}{text}\033[0m"
-
 
   def close(self):
     termios.tcsetattr(self.fd, termios.TCSADRAIN, self.stty) # restore saved TTY settings, e.g. echo & icanon

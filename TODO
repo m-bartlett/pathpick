@@ -1,21 +1,21 @@
-[ ] compare file path lengths before applying ANSI to avoid ANSI-stripping to compare lengths
-
-[ ] Pass paths around instead of strings of paths?
-
-[ ] ctrl-H to toggle showing hidden directories
+[ ] Makefile
     
 [ ] json only outputs true leaves
 
-[ ] import json for pre-populated selection in interactive session
+[ ] input json for pre-populated selection in interactive session
 
-[ ] selection symbols no longer a bool, but --symbols/-S with restricted options which is the the keys of the dict mapping output-type to respective symbols (ascii, nerdfont, unicode - default=ascii)
-
-[ ] make file to install as pip or stand alone executable (zip with a hashbang)
+[ ] makefile to install as pip or stand alone executable (zip with a hashbang)
 
 [ ] convert between json and pathlist outputs
 
+[ ] one day maybe typed input filename matching for rapid selections like rofi or fzf
+    - this would need a sub_path_list or something to restore the results
+
 -----------------------------------------------------------------------
+[!] selection symbols no longer a bool, but --symbols/-S with restricted options which is the the keys of the dict mapping output-type to respective symbols (ascii, nerdfont, unicode - default=ascii)
+[x] ctrl-H to toggle showing hidden directories
 [!] LS_COLORS
+[x] compare file path lengths before applying ANSI to avoid ANSI-stripping to compare lengths
 [x] empty directories don't break everything
 [x] ctrl-R to refresh directory
 [x] dirs don't check '/' but instead use is_dir
@@ -28,3 +28,4 @@
 [x] selection bullet color-reset gets truncated if file is too long, colorizing the rest of the page
 [x] change subselection appropriately on ascend/descend
 [x] return selection JSON on filesystem paths
+[x] Pass pathlib.Paths around instead of strings of paths

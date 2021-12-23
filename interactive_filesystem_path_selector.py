@@ -1,87 +1,60 @@
-from interactive_terminal_application import *
-from enum import IntEnum, auto
 import pathlib
-import re
+import style
+from filetype import filetype
+from interactive_terminal_application import *
 
-class iNodeType(IntEnum):
-  FILE = auto()
-  DIRECTORY = auto()
-  
 
 @singleton
 class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
-  HEIGHT_1 = 1
-  UNSELECTED_PREFIX      = ' '
-  SELECTED_PREFIX        = ' '
-  PARTIAL_PREFIX         = ' '
-  ACTIVE_ROW_INDICATOR   = ' '
-  INACTIVE_ROW_INDICATOR = ' '
-  TRUNCATED_TEXT_INDICATOR = '...'
-  
-  # These are kwargs for InteractiveTerminalApplication.ANSI_style(), see that function for more info
-  BASE_ANSI_STYLE_KWARGS      = {}              # Applied first always
-  FILE_ANSI_STYLE_KWARGS      = {}              # Applied if decorating a file
-  DIRECTORY_ANSI_STYLE_KWARGS = {'fg': 3  }     # For decorating a directory
-  SELECTED_ANSI_STYLE_KWARGS  = {'fg': 6, 'bold' : True } # For decorating a selected item
-  PARTIAL_ANSI_STYLE_KWARGS   = {'fg': 4, 'bold' : True } # For decorating a directory with selected children
-  ACTIVE_ANSI_STYLE_KWARGS    = {'bold' : True} # For decorating the active row the cursor is on
-
-  ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-
-  selection    = {}
-  subselection = selection
-  path_list             = []
-  path_list_types       = []
-  path_list_last        = 0
-  path_list_len         = 0
-  path_list_len_divisor = 1
-  index  = 0
-  row    = 0
-  page   = 0
-  page1  = 1
-  pages  = 1
-  pages1 = 1
+  header_message = None
+  selection      = {}
+  subselection   = selection
+  path_list      = []
+  path_list_last = 0
+  path_list_len  = 0
+  index      = 0
+  row        = 0
+  page       = 0
+  page1      = 1
+  pages      = 1
+  pages1     = 1
   page_start = 0
   page_end   = 0
+  page_info  = ''
+  styles     = {}
 
 
   @staticmethod
-  def _glob2paths_with_hidden(glob):
-    # return [( p.name+'/' if p.is_dir() else p.name ) for p in glob ]
-    return { p.name: iNodeType.DIRECTORY if p.is_dir() else iNodeType.FILE
-             for p in glob }
-
-  @classmethod
-  def _glob2paths_no_hidden(cls, glob):
-    # return [p for p in cls._glob2paths_with_hidden(glob) if not p.startswith('.') ]
-    return { k: v 
-             for k,v in cls._glob2paths_with_hidden(glob).items()
-             if not k.startswith('.') }
-
-  @staticmethod
-  def _sort_path_list(path_list_dict):
-    sorted_path_list       = sorted(path_list_dict.keys())
-    sorted_path_list_dict  = { k: path_list_dict[k] for k in sorted_path_list }
-    sorted_path_list_types = list(sorted_path_list_dict.values())
-    return sorted_path_list, sorted_path_list_types
+  def _iter2paths_with_hidden(it):
+    return list(it)
 
 
   @staticmethod
-  def _sort_path_list_directories_first(path_list_dict):
-    dirs  = { k:v for k,v in path_list_dict.items() if v is iNodeType.DIRECTORY }
-    files = { k:v for k,v in path_list_dict.items() if v is iNodeType.FILE }
-    sorted_path_list       = sorted(dirs.keys()) + sorted(files.keys())
-    sorted_path_list_types = list(dirs.values()) + list(files.values())
-    return sorted_path_list, sorted_path_list_types
+  def _iter2paths_no_hidden(it):
+    return [p for p in it if not p.name.startswith('.')]
+
+
+  @staticmethod
+  def _sort_path_list(path_list):
+    return sorted(path_list)
+
+
+  @staticmethod
+  def _sort_path_list_directories_first(path_list):
+    dirs  = [ d for d in path_list if d.is_dir() ]
+    files = [ f for f in path_list if not f.is_dir() ]
+    return sorted(dirs) + sorted(files)
 
 
   def __init__( self,
                 root        = None,
                 show_hidden = False,
-                dirs_first  = False ):
+                dirs_first  = False,
+                styles      = {} ):
     super().__init__()
 
-    self.truncate_symbol_length = len(self.TRUNCATED_TEXT_INDICATOR)
+    for k, v in styles.items():
+      self.styles[k] = style.Style(**v)
 
     if root and root != '.':
       root = pathlib.Path(root).expanduser().resolve()
@@ -93,9 +66,9 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     root = root.absolute()
 
     if show_hidden:
-      self.glob2paths = self._glob2paths_with_hidden
+      self.iter2paths = self._iter2paths_with_hidden
     else:
-      self.glob2paths = self._glob2paths_no_hidden
+      self.iter2paths = self._iter2paths_no_hidden
 
     if dirs_first:
       self.sort_path_list = self._sort_path_list_directories_first
@@ -116,23 +89,19 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
          'h  ': self.ascend,
          '   ': self.toggle_selected,
         '\t  ': self.toggle_selected,
-        '\n  ': lambda: False,          # enter key
+        '\n  ': lambda: False,                 # enter key
       '\033  ': lambda: self.end(throw=True),  # escape
-      '\033[A': self.row_up,            # up
-      '\033[B': self.row_down,          # down
-      '\033[C': self.select_or_descend, # right
-      '\033[D': self.ascend,            # left
-      '\033[5': self.page_up,           # PageUp
-      '\033[6': self.page_down,         # PageDown
-      '\x01  ': self.toggle_all_selected, # ctrl-a
-      '\x12  ': self.refresh,           # ctrl-r
-      '\x08  ': self.toggle_list_hidden # ctrl-h
+      '\033[A': self.row_up,                   # up
+      '\033[B': self.row_down,                 # down
+      '\033[C': self.select_or_descend,        # right
+      '\033[D': self.ascend,                   # left
+      '\033[5': self.page_up,                  # pageup
+      '\033[6': self.page_down,                # pagedown
+      '\x01  ': self.select_all,               # ctrl-a
+      '\x04  ': self.toggle_show_dirs_first,   # ctrl-d
+      '\x08  ': self.toggle_show_hidden,       # ctrl-h
+      '\x12  ': self.refresh_manual,           # ctrl-r
     }
-
-
-  def resize(self, *args):
-    super().resize()
-    self.draw_page()
 
 
   def read_key(self):
@@ -144,9 +113,23 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     return True
 
 
-  def truncate_to_width(self, s):
-    if len(self.ANSI_REGEX.sub('', s)) > self.WIDTH:
-      return s[:self.WIDTH-self.truncate_symbol_length]+self.TRUNCATED_TEXT_INDICATOR
+  def resize(self, *args):
+    super().resize()
+    self.draw_page()
+
+
+  def truncate_right_to_width(self, s, width):
+    if len(s) > width:
+      truncated = self.styles['truncated']
+      return s[:width-truncated.suffix_length] + truncated.suffix
+    else:
+      return s
+
+
+  def truncate_left_to_width(self, s, width):
+    if len(s) > width:
+      truncated = self.styles['truncated']
+      return truncated.prefix + s[-width+truncated.prefix_length:]
     else:
       return s
 
@@ -154,28 +137,14 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
   def path_list_get(self, index=None):
     if index is None:  index = self.index
     try:               return self.path_list[index]
-    except IndexError:
-      return None
+    except IndexError: return None
 
-
-  def is_dir(self, path=None):
-    try:
-      if path is None:
-        index = self.index
-      else:
-        index = self.path_list.index(path)
-      return self.path_list_types[index] is iNodeType.DIRECTORY
-    except (ValueError, IndexError):  
-      return (self.cwd / path).resolve().is_dir()
-      
 
   def ls(self):
-    self.path_list, self.path_list_types = (
-      self.sort_path_list(  self.glob2paths( self.cwd.glob('*') )  )
-    )
-    self.path_list_len = max(len(self.path_list), 0)
+    self.path_list      = self.sort_path_list(  self.iter2paths( self.cwd.iterdir() )  )
+    self.path_list_len  = max(len(self.path_list), 0)
     self.path_list_last = max(self.path_list_len - 1, 0)
-    self.path_list_len_divisor = max(self.path_list_len, 1)
+    self.path_list_any  = self.path_list_len > 0
 
 
   def paginate(self):
@@ -190,58 +159,63 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.page_end = min(self.page_start + self.HEIGHT_1, self.path_list_len)
     self.page1 = self.page + 1
     self.pages1 = self.pages + 1
+    self.page_info = f' : {self.page1}/{self.pages1} ' if self.pages > 0 else ''
 
 
-  def draw_header(self):
-    page_string = f' : {self.page1}/{self.pages1} ' if self.pages else ''
-    header = f"   {self.index + (self.path_list_len>0)}/{self.path_list_len}{page_string}"
-    path_width = self.WIDTH - len(header)
-    path = str(self.cwd)
-    if len(path) > path_width:
-      path = self.TRUNCATED_TEXT_INDICATOR + path[-(path_width-self.truncate_symbol_length):]
-    gap = ' ' * (path_width - len(path))
+  def draw_header(self, message):
     self.save_cursor_xy()
     self.cursor_home()
     self.clear_line()
-    self.puts(self.ANSI_style(f"{path}{gap}{header}", bold=True, reverse=True))
+    self.puts(message)
     self.restore_cursor_xy()
+
+
+  def draw_header_info(self):
+    _style    = self.styles['header']
+    row_info  = f"   {self.index + self.path_list_any}/{self.path_list_len}{self.page_info}"
+    width     = self.WIDTH - len(row_info) - _style.length
+    path      = self.truncate_left_to_width(str(self.cwd), width)
+    gap       = ' ' * (width - len(path))
+    self.draw_header(_style.format(f"{path}{gap}{row_info}"))
+
+
+  def draw_header_alert(self, message):
+    _style  = self.styles['header']
+    width   = self.WIDTH - _style.length
+    message = self.truncate_left_to_width(message, width).center(width)
+    self.draw_header(_style.format(message))
     
     
   def draw_row(self, index=None, active=False):
     if index is None: index = self.index
-    item = self.path_list_get(index)
-    if item is None: return
+    path = self.path_list_get(index)
+    if path is None: return
+    path_name = path.name
 
-    ANSI_style_kwargs = {} | self.BASE_ANSI_STYLE_KWARGS
-    selection_symbol  = self.UNSELECTED_PREFIX
-    row_indicator     = self.INACTIVE_ROW_INDICATOR
+    selected = self.subselection.get(path_name, False)
+    this_style = style.Style()
+    this_style.apply(self.styles[filetype(path)])
 
-    selected = self.subselection.get(item, False)
-    if self.is_dir(item):
-      ANSI_style_kwargs |= self.DIRECTORY_ANSI_STYLE_KWARGS
-      item += '\033[0m/'
-    else:
-      ANSI_style_kwargs |= self.FILE_ANSI_STYLE_KWARGS
-      
     if isinstance(selected, dict) and True in selected.values():
-      ANSI_style_kwargs |= self.PARTIAL_ANSI_STYLE_KWARGS
-      selection_symbol  =  self.PARTIAL_PREFIX
+      this_style.apply(self.styles['children_selected'])
     elif selected is True:
-      ANSI_style_kwargs |= self.SELECTED_ANSI_STYLE_KWARGS
-      selection_symbol  =  self.SELECTED_PREFIX
+      this_style.apply(self.styles['selected'])
     else:
-      selected = self.subselection.get(item, False)      
+      this_style.apply(self.styles['unselected'])
       
     if active:
-      ANSI_style_kwargs |= self.ACTIVE_ANSI_STYLE_KWARGS
-      row_indicator     =  self.ACTIVE_ROW_INDICATOR
-    
-    item = self.truncate_to_width(f'{row_indicator}{selection_symbol}{item}')
-    item = item.ljust(self.WIDTH)
-    item = self.ANSI_style(item, **ANSI_style_kwargs)
+      this_style.apply(self.styles['active'])
+    else:
+      this_style.apply(self.styles['inactive'])
+
+    this_style.reset = True
+    this_style.update_template()
+    width = self.WIDTH - this_style.length
+    text = self.truncate_right_to_width(path_name, width)
+    text = this_style.format(text)
 
     self.clear_line()
-    self.puts(item)
+    self.puts(text)
 
 
   def draw_cursor(self):
@@ -255,7 +229,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.paginate()
     self.cursor_home()
     self.clear_screen()
-    self.draw_header()
+    self.draw_header_info()
     self.cursor_home()
     for i in range(self.page_start, self.page_end):
       self.puts('\n')
@@ -270,7 +244,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     if self.index < self.page_start:
       self.draw_page()
     else:
-      self.draw_header()
+      self.draw_header_info()
       self.draw_cursor()
 
 
@@ -281,7 +255,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     if self.index >= self.page_end:
       self.draw_page()
     else:
-      self.draw_header()
+      self.draw_header_info()
       self.draw_cursor()
 
 
@@ -297,25 +271,60 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
     self.draw_page()
 
 
+  def refresh(self):
+    active_element = self.path_list_get()
+    self.ls()
+    try: self.index = self.path_list.index(active_element)
+    except ValueError: pass
+    self.draw_page()
+
+
+  def refresh_manual(self):
+    self.refresh()
+    self.draw_header_alert("Directory listing refreshed")
+
+
   def toggle_selected(self):
-    path = self.path_list_get(self.index)
+    path = self.path_list_get(self.index).name
     if path is None: return
-    if path.endswith('/'): path = path[:-1]
     self.subselection[path] = not self.subselection.get(path, False)
     self.draw_cursor()
 
 
-  def toggle_all_selected(self): # TO-DO: implement
-    ...
+  def select_all(self):
+    all_selected = all(self.subselection.get(path.name, False) for path in self.path_list)
+    if all_selected:
+      boolean, message = False, "Deselect all"
+    else:
+      boolean, message = True, "Select all"
+    # for k in self.subselection:
+      # self.subselection[k] = boolean
+    for path in self.path_list:
+      self.subselection[path.name] = boolean
+    self.refresh()
+    self.draw_header_alert(message)
 
 
-  def toggle_list_hidden(self): # TO-DO: implement
-    ...
+  def toggle_show_hidden(self):
+    if self.iter2paths is self._iter2paths_with_hidden:
+      self.iter2paths = self._iter2paths_no_hidden
+      message = "Hidden files ignored"
+    else:
+      self.iter2paths = self._iter2paths_with_hidden
+      message = "Hidden files displayed"
+    self.refresh()
+    self.draw_header_alert(message)
 
 
-  def refresh(self):
-    self.ls()
-    self.draw_page()
+  def toggle_show_dirs_first(self):
+    if self.sort_path_list is self._sort_path_list:
+      self.sort_path_list = self._sort_path_list_directories_first
+      message = "Directories listed first"
+    else:
+      self.sort_path_list = self._sort_path_list
+      message = "All files alphabetical"
+    self.refresh()
+    self.draw_header_alert(message)
 
 
   def ascend(self):
@@ -328,32 +337,35 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       for key in key_hierarchy:   # recurse from root to nesting n-1 to go up 1
         subselection = subselection[key]
       self.subselection = subselection
-      pwd = self.cwd.name
+      _cwd = self.cwd
       self.cwd = cwd
       self.ls()
-      self.index = self.path_list.index(pwd)
+      self.index = self.path_list.index(_cwd)
       self.draw_page()
 
 
   def descend(self):
-    path = self.path_list_get(self.index)
+    newdir = self.path_list_get(self.index)
+    newdirname = newdir.name
     cwd = self.cwd
-    self.cwd = (self.cwd/path).resolve()
+    self.cwd = newdir.resolve()
     self.ls()
     if not str(cwd).startswith(str(self.root)):  return
     self.index = 0
-    subselection = self.subselection.get(path, None)
+    subselection = self.subselection.get(newdirname, None)
     if not isinstance(subselection, dict):
-      self.subselection[path] = {}
-      subselection = self.subselection[path]
+      self.subselection[newdirname] = {}
+      subselection = self.subselection[newdirname]
     self.subselection = subselection
     self.draw_page()
+    if not self.path_list_any:
+      self.draw_header_alert(f"{newdirname} is empty")
 
 
   def select_or_descend(self):
     path = self.path_list_get(self.index)
     if path is None: return
-    if self.is_dir(path): self.descend()
+    if path.is_dir(): self.descend()
     else: self.toggle_selected()
 
 

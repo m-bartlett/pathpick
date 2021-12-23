@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-from interactive_filesystem_path_selector import *
-import argparse, json
+from interactive_filesystem_path_selector import InteractiveFilesystemPathSelector
+from config import read_user_config_file
+import argparse, json, sys
 
 parser = argparse.ArgumentParser()
 
@@ -42,18 +43,30 @@ parser.add_argument(
   help="Use plain ASCII characters instead of unicode characters for symbols indicating selection states in an interactive session"
 )
 
+parser.add_argument(
+  "--verbose", "-v", action="store_true",
+  help="print extra information during process execution for debugging"
+)
+
+parser.add_argument(
+  "--config", type=str,
+  help="path to style configuration file"
+)
+
 args = parser.parse_args()
+
+user_config_file, config = read_user_config_file()
+
+if args.verbose:
+  print(f"Loaded config from {user_config_file}", file=sys.stderr)
+  print(config)
 
 selection_output = ''
 
 with InteractiveFilesystemPathSelector( root        = args.root,
                                         show_hidden = args.show_hidden,
-                                        dirs_first  = args.dirs_first  ) as fsp:
-  if args.ascii:
-    fsp.ACTIVE_ROW_INDICATOR = '> '
-    fsp.UNSELECTED_PREFIX    = ' '
-    fsp.SELECTED_PREFIX      = '+ '
-    fsp.PARTIAL_PREFIX       = '~ '
+                                        dirs_first  = args.dirs_first,
+                                        styles      = config  ) as fsp:
 
   fsp.draw_page()
   
