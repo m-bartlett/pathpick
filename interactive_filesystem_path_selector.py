@@ -322,7 +322,7 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
       message = "Directories listed first"
     else:
       self.sort_path_list = self._sort_path_list
-      message = "All files alphabetical"
+      message = "All listed alphabetically"
     self.refresh()
     self.draw_header_alert(message)
 
