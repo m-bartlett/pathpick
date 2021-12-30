@@ -1,4 +1,3 @@
-[ ] Makefile
     
 [ ] json only outputs true leaves
 
@@ -13,6 +12,7 @@
 
 -----------------------------------------------------------------------
 [!] selection symbols no longer a bool, but --symbols/-S with restricted options which is the the keys of the dict mapping output-type to respective symbols (ascii, nerdfont, unicode - default=ascii)
+[x] Makefile
 [x] ctrl-H to toggle showing hidden directories
 [!] LS_COLORS
 [x] compare file path lengths before applying ANSI to avoid ANSI-stripping to compare lengths
