@@ -26,3 +26,8 @@ python >= 3.9.0
 - `stickytape`?
 
 ### Customization
+
+
+### Credits
+- gist on how to create [Python zipapp web apps](https://gist.github.com/lukassup/cf289fdd39124d5394513a169206631c)
+- https://makefiletutorial.com

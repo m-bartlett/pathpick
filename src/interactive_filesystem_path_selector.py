@@ -1,7 +1,7 @@
 import pathlib
-import style
-from filetype import filetype
-from interactive_terminal_application import *
+from . import style
+from .filetype import filetype
+from .interactive_terminal_application import *
 
 
 @singleton
