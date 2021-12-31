@@ -1,18 +1,14 @@
-    
-[ ] json only outputs true leaves
-
 [ ] input json for pre-populated selection in interactive session
+    [ ] and accept pathlist input?
 
-[ ] makefile to install as pip or stand alone executable (zip with a hashbang)
+[ ] how to handle absolute vs relative json output? And input?
 
 [ ] convert between json and pathlist outputs
 
-[ ] one day maybe typed input filename matching for rapid selections like rofi or fzf
-    - this would need a sub_path_list or something to restore the results
-
 -----------------------------------------------------------------------
-[!] selection symbols no longer a bool, but --symbols/-S with restricted options which is the the keys of the dict mapping output-type to respective symbols (ascii, nerdfont, unicode - default=ascii)
+[x] json only outputs true leaves
 [x] Makefile
+[x] makefile to install as pip or stand alone executable (zip with a hashbang)
 [x] ctrl-H to toggle showing hidden directories
 [!] LS_COLORS
 [x] compare file path lengths before applying ANSI to avoid ANSI-stripping to compare lengths

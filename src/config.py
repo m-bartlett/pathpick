@@ -81,8 +81,9 @@ def _read_config():
   return config
 
 
-def read_user_config_file():
-  config_file_path = config_parser.read(map(str, user_config_file_paths))
+def read_user_config_file(extra_config_file_path=None):
+  config_path_iter = map(str, [extra_config_file_path] + user_config_file_paths)
+  config_file_path = config_parser.read(config_path_iter)
   if config_file_path:                                                     # module exists as directory
     return (config_file_path[0], _read_config())
   elif (default_config_text := read_text(package_name, config_file_name)): # module is a zipapp

@@ -1,5 +1,4 @@
-import termios, atexit, sys, os, signal, io
-import fcntl, termios, struct, shutil
+import atexit, sys, os, signal, io, fcntl, termios, struct, shutil
 
 """
 https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
@@ -25,19 +24,15 @@ class InteractiveTerminalApplication():
       except: return
       return cr
 
+
   def get_terminal_size(self):
       env = os.environ
       cr = self.ioctl_GWINSZ(0) or self.ioctl_GWINSZ(1) or self.ioctl_GWINSZ(2)
       if not cr:
-          try:
-              # fd = os.open(os.ctermid(), os.O_RDONLY)
-              cr = self.ioctl_GWINSZ(self.fd)
-              # os.close(fd)
+          try: cr = self.ioctl_GWINSZ(self.fd)
           except:
-              pass
-      if not cr:
-          try: cr = shutil.get_terminal_size()
-          except: cr = (env.get('LINES', 25), env.get('COLUMNS', 80))
+            try: cr = shutil.get_terminal_size()
+            except: cr = (env.get('LINES', 25), env.get('COLUMNS', 80))
       return int(cr[1]), int(cr[0])
   
 
@@ -125,6 +120,7 @@ class InteractiveTerminalApplication():
 
   __exit__ = end
   
+
   def __enter__(self):
     self.launch()
     return self

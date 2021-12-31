@@ -1,7 +1,12 @@
 #!/usr/bin/env python
-from .interactive_filesystem_path_selector import InteractiveFilesystemPathSelector
+import argparse, sys, os
+from .interactive_path_selector import InteractivePathSelector
 from .config import read_user_config_file
-import argparse, json, sys
+
+def printerr(*args, **kwargs):
+  kwargs['file'] = sys.stderr
+  print(*args, **kwargs)
+
 
 def main():
   parser = argparse.ArgumentParser()
@@ -26,7 +31,7 @@ def main():
     help="List directories at the top of the page instead of sorted with file names"
   )
 
-  parser.add_argument(                          # TODO: implement
+  parser.add_argument(
     "--json", '-j', action="store_true",
     help="Return output as JSON string hiearchy instead of a newline-separated list of paths"
   )
@@ -34,7 +39,7 @@ def main():
   parser.add_argument(                          # TODO: implement
     "--load-json", '-J', type=str, default=None, metavar="<JSON FILE OR STRING>",
     help="""
-      Load JSON selection (the output of a session with --json) as the active selection in an interactive session.
+      Load JSON selection (possibly the output of a previous session with --json) as the initial selection in an interactive session, as opposed to nothing selected initially.
       This option used with --json is intended to serve as a selection caching feature, so the user can preserve a filesystem selection to reuse later or serve as a template for common selections.
     """
   )
@@ -58,21 +63,24 @@ def main():
 
   user_config_file, config = read_user_config_file()
 
+  if not os.isatty(sys.stdin.fileno()):
+    user_stdin = sys.stdin.read().strip()
 
   if args.verbose:
+    if user_stdin:
+      printerr(f"Data from stdin:\n{user_stdin}\n")
     if user_config_file is None:
       message = "Loaded default config"
     else:
       message = f"Loaded config from {user_config_file}"
-    print(message, file=sys.stderr)
-    print(config)
+    printerr(message)
+    printerr(config)
 
   selection_output = ''
-
-  with InteractiveFilesystemPathSelector( root        = args.root,
-                                          show_hidden = args.show_hidden,
-                                          dirs_first  = args.dirs_first,
-                                          styles      = config['style']  ) as fsp:
+  with InteractivePathSelector( root = args.root,
+                                show_hidden = args.show_hidden,
+                                dirs_first  = args.dirs_first,
+                                styles      = config['style']  ) as fsp:
 
     fsp.draw_page()
 
@@ -82,10 +90,10 @@ def main():
       sys.exit(1)
 
     if args.json:
-      selection_output = json.dumps(fsp.selection) # TO-DO JSON-output only output True leaves
+      import json
+      selection_output = json.dumps(fsp.get_selection_json(), separators=(',', ':'))
     else:
       selection_output = '\n'.join(fsp.get_selection_paths())
-
 
   print(selection_output)
 

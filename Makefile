@@ -38,4 +38,4 @@ install: $(TARGET)
 	install -m 755 $(TARGET) $(PREFIX)/bin/$(TARGET)
 
 uninstall:
-	install -m 755 $(TARGET) $(PREFIX)/bin/$(TARGET)
+	rm $(PREFIX)/bin/$(TARGET)

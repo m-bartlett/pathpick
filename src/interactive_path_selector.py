@@ -5,7 +5,7 @@ from .interactive_terminal_application import *
 
 
 @singleton
-class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
+class InteractivePathSelector(InteractiveTerminalApplication):
   header_message = None
   selection      = {}
   subselection   = selection
@@ -370,15 +370,30 @@ class InteractiveFilesystemPathSelector(InteractiveTerminalApplication):
 
 
   @classmethod
-  def _nested_dict_to_path_strings(cls, dir, j):
+  def _nested_dict_to_path_strings(cls, path_prefix: str, selection: dict):
     paths = []
-    for k,v in j.items():
+    for k,v in selection.items():
       if v is True:
-        paths.append(f"{dir}/{k}")
+        paths.append(f"{path_prefix}/{k}")
       elif isinstance(v, dict):
-        paths += cls._nested_dict_to_path_strings(f"{dir}/{k}", v)
+        paths += cls._nested_dict_to_path_strings(f"{path_prefix}/{k}", v)
     return paths
 
 
   def get_selection_paths(self):
     return self._nested_dict_to_path_strings(str(self.root), self.selection)
+
+
+  @classmethod
+  def _nested_dict_to_path_json(cls, selection: dict):
+    true_selection = {}
+    for k,v in selection.items():
+      if v is True:
+        true_selection[k] = v
+      elif isinstance(v, dict):
+        true_selection[k] = cls._nested_dict_to_path_json(v)
+    return true_selection
+
+
+  def get_selection_json(self):
+    return self._nested_dict_to_path_json(self.selection)
