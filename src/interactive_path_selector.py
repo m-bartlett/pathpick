@@ -25,6 +25,10 @@ class InteractivePathSelector(InteractiveTerminalApplication):
 
 
   @staticmethod
+  def _noop(): return
+
+
+  @staticmethod
   def _iter2paths_with_hidden(it):
     return list(it)
 
@@ -106,10 +110,9 @@ class InteractivePathSelector(InteractiveTerminalApplication):
 
   def read_key(self):
     event  = os.read(self.fd, 3).ljust(3).decode()
-    try:
-      ret = self.input_action_map[event]()
-      if ret is not None: return ret
-    except KeyError: pass
+    return_value = self.input_action_map.get(event, self._noop)()
+    if return_value is not None:
+      return return_value
     return True
 
 
@@ -294,11 +297,9 @@ class InteractivePathSelector(InteractiveTerminalApplication):
   def select_all(self):
     all_selected = all(self.subselection.get(path.name, False) for path in self.path_list)
     if all_selected:
-      boolean, message = False, "Deselect all"
+      boolean, message = False, "All deselected"
     else:
-      boolean, message = True, "Select all"
-    # for k in self.subselection:
-      # self.subselection[k] = boolean
+      boolean, message = True, "All selected"
     for path in self.path_list:
       self.subselection[path.name] = boolean
     self.refresh()
@@ -328,20 +329,20 @@ class InteractivePathSelector(InteractiveTerminalApplication):
 
 
   def ascend(self):
-    cwd = self.cwd.parent
-    cwd_str = str(cwd)
-
-    if cwd_str.startswith(str(self.root)):
-      key_hierarchy = cwd_str.partition(str(self.root))[2].split('/')[1:]
+    parent = self.cwd.parent
+    if parent.is_relative_to(self.root):
+      key_hierarchy = parent.relative_to(self.root).parts
       subselection = self.selection
       for key in key_hierarchy:   # recurse from root to nesting n-1 to go up 1
         subselection = subselection[key]
       self.subselection = subselection
-      _cwd = self.cwd
-      self.cwd = cwd
+      cwd = self.cwd
+      self.cwd = parent
       self.ls()
-      self.index = self.path_list.index(_cwd)
+      self.index = self.path_list.index(cwd)
       self.draw_page()
+    else:
+      self.draw_header_alert(f"Cannot ascend past root")
 
 
   def descend(self):
