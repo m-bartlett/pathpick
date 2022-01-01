@@ -38,9 +38,10 @@ def main():
 
   parser.add_argument(                          # TODO: implement
     "--load-json", '-J', type=str, default=None, metavar="<JSON FILE OR STRING>",
-    help="""
+    help=f"""
       Load JSON selection (possibly the output of a previous session with --json) as the initial selection in an interactive session, as opposed to nothing selected initially.
       This option used with --json is intended to serve as a selection caching feature, so the user can preserve a filesystem selection to reuse later or serve as a template for common selections.
+      If this option is used in conjunction with piping selection output in through STDIN, the data read from STDIN and the data read via this argument will be unioned. E.g.
     """
   )
 
@@ -52,6 +53,11 @@ def main():
   parser.add_argument(
     "--verbose", "-v", action="store_true",
     help="print extra information during process execution for debugging"
+  )
+
+  parser.add_argument(
+    "--version", action="store_true",
+    help="print version and exit"
   )
 
   parser.add_argument(
@@ -81,7 +87,6 @@ def main():
                                 show_hidden = args.show_hidden,
                                 dirs_first  = args.dirs_first,
                                 styles      = config['style']  ) as fsp:
-
     fsp.draw_page()
 
     try:
