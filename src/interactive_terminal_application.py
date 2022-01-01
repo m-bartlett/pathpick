@@ -20,20 +20,17 @@ class InteractiveTerminalApplication():
 
   @staticmethod
   def ioctl_GWINSZ(fd):
-      try: cr = struct.unpack('hh', fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234'))
-      except: return
-      return cr
+    try:
+      return struct.unpack('hh', fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234'))
+    except:
+      return
 
 
   def get_terminal_size(self):
-      env = os.environ
-      cr = self.ioctl_GWINSZ(0) or self.ioctl_GWINSZ(1) or self.ioctl_GWINSZ(2)
-      if not cr:
-          try: cr = self.ioctl_GWINSZ(self.fd)
-          except:
-            try: cr = shutil.get_terminal_size()
-            except: cr = (env.get('LINES', 25), env.get('COLUMNS', 80))
-      return int(cr[1]), int(cr[0])
+    if not (cr := self.ioctl_GWINSZ(self.fd)):
+      try:    cr = shutil.get_terminal_size()
+      except: cr = (os.getenv('LINES', 25), os.getenv('COLUMNS', 80))
+    return int(cr[1]), int(cr[0])
   
 
   def puts(self, s):
@@ -89,15 +86,28 @@ class InteractiveTerminalApplication():
 
   def launch(self):
     """ Manual terminal graphics init """
+    # See `man termios` for flag information
     atexit.register(self.close) # in case an unexpected exit occurs, restore the terminal back to its starting state
     new = termios.tcgetattr(self.fd)       #
-    new[3] = new[3] & ~termios.ECHO   # disable echo, i.e. don't print input chars
-    new[3] = new[3] & ~termios.ICANON # disable canonical (line edit) mode, chars sent immediately without buffer
+
+    # `& ~()` disables flags, `|()` enables flags
+    iflag, oflag, cflag, lflag, ispeed, ospeed, cc = new
+
+    iflag = iflag | (0
+      # termios.IGNCR | # Ignore carriage return
+      # termios.ICRNL   # Translate carriage return to newline (unless IGNCR=1)
+    )
+
+    lflag = lflag & ~( termios.ECHO   | # echo input -- disable printing input
+                       termios.ICANON ) # Disable canonical mode so input is available immediately
+
       # *T*erminal *C*hange *S*hell *A*ction
       # TCSANOW -> change occurs immediately
       # TCSADRAIN -> await all output to be transmitted. Use when changing parameters that affect output.
       # TCSAFLUSH -> await all output to be transmitted, and all existing unprocessed input is discarded.
-    termios.tcsetattr(self.fd, termios.TCSADRAIN, new)
+    termios.tcsetattr( self.fd,
+                       termios.TCSADRAIN,
+                       [iflag, oflag, cflag, lflag, ispeed, ospeed, cc] )
     self.hide_cursor()
     self.alt_screen()
     self.clear_screen()
