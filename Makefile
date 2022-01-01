@@ -1,7 +1,8 @@
 .PHONY: all run clean uninstall
-
 SHELL := /bin/bash
+
 TARGET := pathpick
+
 BUILD_DIR := app
 PREFIX ?= /usr/local
 
@@ -36,6 +37,7 @@ app: $(TARGET)
 
 install: $(TARGET)
 	install -m 755 $(TARGET) $(PREFIX)/bin/$(TARGET)
+	make clean
 
 uninstall:
 	rm $(PREFIX)/bin/$(TARGET)
