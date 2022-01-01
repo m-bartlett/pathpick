@@ -5,6 +5,13 @@
 
 [ ] convert between json and pathlist outputs
 
+[ ] README install/about
+
+[ ] Automated version number:
+    [ ] --version
+    [ ] __version__
+    [ ] git tag/release + Actions
+
 -----------------------------------------------------------------------
 [x] json only outputs true leaves
 [x] Makefile
