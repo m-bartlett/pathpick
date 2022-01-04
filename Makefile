@@ -1,21 +1,35 @@
+# https://makefiletutorial.com
 .PHONY: all run clean uninstall
+
+TARGET := pathpick
+SHELL := /bin/bash
 
 PREFIX ?= /usr/local
 PYTHON ?= /usr/bin/env python
 
-TARGET := pathpick
-SHELL := /bin/bash
 BUILD_DIR := app
+SOURCE_DIR := src
+
+SRC := $(shell find $(SOURCE_DIR) -type f)
 
 all: $(TARGET)
 
 run:
-	$(PYTHON) -m src
+	$(PYTHON) -m $(SOURCE_DIR)
 
 clean:
 	$(PYTHON) setup.py clean
 	find . -type f -name '*.pyc' -delete
-	rm -rf __pycache__ build dist *.egg-info  src/__pycache__ src/*.egg-info app $(TARGET)
+	rm -rfv \
+		__pycache__               \
+		.pytest_cache             \
+		build                     \
+		dist                      \
+		*.egg-info                \
+		$(SOURCE_DIR)/__pycache__ \
+		$(SOURCE_DIR)/*.egg-info  \
+		$(BUILD_DIR)              \
+		$(TARGET)
 
 setupinstall: clean
 	$(PYTHON) setup.py install
@@ -23,9 +37,9 @@ setupinstall: clean
 pipinstall: clean
 	pip install -U . --use-feature=in-tree-build
 
-$(TARGET):
+$(TARGET): $(SRC)
 	mkdir -p $(BUILD_DIR)
-	cp -r src $(BUILD_DIR)/$(TARGET)
+	cp -r $(SOURCE_DIR) $(BUILD_DIR)/$(TARGET)
 	$(PYTHON) -m zipapp \
 		$(BUILD_DIR) \
 		--main $(TARGET).__main__:main \

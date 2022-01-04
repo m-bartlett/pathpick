@@ -93,18 +93,18 @@ class InteractivePathSelector(InteractiveTerminalApplication):
          'h  ': self.ascend,
          '   ': self.toggle_selected,
         '\t  ': self.toggle_selected,
-        '\n  ': lambda: False,                 # enter key
-      '\033  ': lambda: self.end(throw=True),  # escape
-      '\033[A': self.row_up,                   # up
-      '\033[B': self.row_down,                 # down
-      '\033[C': self.select_or_descend,        # right
-      '\033[D': self.ascend,                   # left
-      '\033[5': self.page_up,                  # pageup
-      '\033[6': self.page_down,                # pagedown
-      '\x01  ': self.select_all,               # ctrl-a
-      '\x04  ': self.toggle_show_dirs_first,   # ctrl-d
-      '\x08  ': self.toggle_show_hidden,       # ctrl-h
-      '\x12  ': self.refresh_manual,           # ctrl-r
+        '\n  ': lambda: False,                # enter key
+      '\033  ': lambda: self.end(throw=True), # escape
+      '\033[A': self.row_up,                  # up
+      '\033[B': self.row_down,                # down
+      '\033[C': self.select_or_descend,       # right
+      '\033[D': self.ascend,                  # left
+      '\033[5': self.page_up,                 # pageup
+      '\033[6': self.page_down,               # pagedown
+      '\x01  ': self.toggled_all_selected,    # ctrl-a
+      '\x04  ': self.toggle_show_dirs_first,  # ctrl-d
+      '\x08  ': self.toggle_show_hidden,      # ctrl-h
+      '\x12  ': self.refresh_manual,          # ctrl-r
     }
 
 
@@ -196,26 +196,27 @@ class InteractivePathSelector(InteractiveTerminalApplication):
     path_name = path.name
 
     selected = self.subselection.get(path_name, False)
-    this_style = style.Style()
-    this_style.apply(self.styles[filetype(path)])
+    row_style = style.Style()
+    row_style.apply(self.styles[filetype(path)])
 
-    if isinstance(selected, dict) and True in selected.values():
-      this_style.apply(self.styles['children_selected'])
-    elif selected is True:
-      this_style.apply(self.styles['selected'])
+    # if isinstance(selected, dict) and True in selected.values():
+    if isinstance(selected, dict) and selected:
+      row_style.apply(self.styles['nested_selected'])
+    elif selected:
+      row_style.apply(self.styles['selected'])
     else:
-      this_style.apply(self.styles['unselected'])
+      row_style.apply(self.styles['unselected'])
       
     if active:
-      this_style.apply(self.styles['active'])
+      row_style.apply(self.styles['active'])
     else:
-      this_style.apply(self.styles['inactive'])
+      row_style.apply(self.styles['inactive'])
 
-    this_style.reset = True
-    this_style.update_template()
-    width = self.WIDTH - this_style.length
+    row_style.reset = True
+    row_style.update_template()
+    width = self.WIDTH - row_style.length
     text = self.truncate_right_to_width(path_name, width)
-    text = this_style.format(text)
+    text = row_style.format(text)
 
     self.clear_line()
     self.puts(text)
@@ -290,18 +291,24 @@ class InteractivePathSelector(InteractiveTerminalApplication):
   def toggle_selected(self):
     path = self.path_list_get(self.index).name
     if path is None: return
-    self.subselection[path] = not self.subselection.get(path, False)
+    if self.subselection.get(path, False):
+      del self.subselection[path]
+    else:
+      self.subselection[path] = True
     self.draw_cursor()
 
 
-  def select_all(self):
+  def toggled_all_selected(self): # TO-DO del unselect
     all_selected = all(self.subselection.get(path.name, False) for path in self.path_list)
     if all_selected:
-      boolean, message = False, "All deselected"
+      message ="All deselected"
+      # for key in self.subselection.keys():
+        # del self.subselection[key]
+      self.subselection.clear()
     else:
-      boolean, message = True, "All selected"
-    for path in self.path_list:
-      self.subselection[path.name] = boolean
+      message = "All selected"
+      for path in self.path_list:
+        self.subselection[path.name] = True
     self.refresh()
     self.draw_header_alert(message)
 
@@ -335,6 +342,8 @@ class InteractivePathSelector(InteractiveTerminalApplication):
       subselection = self.selection
       for key in key_hierarchy:   # recurse from root to nesting n-1 to go up 1
         subselection = subselection[key]
+      if not subselection.get(self.cwd.name, True):
+        del subselection[self.cwd.name]
       self.subselection = subselection
       cwd = self.cwd
       self.cwd = parent
@@ -351,7 +360,6 @@ class InteractivePathSelector(InteractiveTerminalApplication):
     cwd = self.cwd
     self.cwd = newdir.resolve()
     self.ls()
-    if not str(cwd).startswith(str(self.root)):  return
     self.index = 0
     subselection = self.subselection.get(newdirname, None)
     if not isinstance(subselection, dict):
