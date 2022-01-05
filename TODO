@@ -3,9 +3,11 @@
 
 [ ] how to handle absolute vs relative json output? And input?
 
+[ ] config file defaults
+
 [ ] convert between json and pathlist outputs
 
-[ ] README install/about
+[ ] README about+examples
 
 [ ] Automated version number:
     [ ] --version
@@ -13,6 +15,7 @@
     [ ] git tag/release + Actions
 
 -----------------------------------------------------------------------
+[x] README install
 [x] json only outputs true leaves
 [x] Makefile
 [x] makefile to install as pip or stand alone executable (zip with a hashbang)

@@ -12,7 +12,7 @@ ansi_cursor_regex = re.compile(r'(\x1b\[\??[\d;]*[a-zA-Z])+', flags=re.MULTILINE
 
 
 @pytest.fixture(scope="session")
-def session_tmp_path(tmp_path_factory):
+def session_tmp_path(tmp_path_factory):   # Create a standard directory hierarchy to test features
   tmp = tmp_path_factory.mktemp('tmp', numbered=False)
   (tmp/'file').touch()
 
@@ -38,7 +38,7 @@ def _monkeypatch_puts(s):
   sys.stdout.flush()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="function")   # Replace TUI output fd with pytest stdout to capture TUI output
 def capturable_interactive_path_selector(monkeypatch, session_tmp_path):
 
   @contextlib.contextmanager
@@ -60,7 +60,7 @@ def capturable_interactive_path_selector(monkeypatch, session_tmp_path):
 
 
 @pytest.fixture(scope="function")
-def ANSI_capsys(monkeypatch, capsys):
+def ANSI_capsys(monkeypatch, capsys): # regular capsys but purge ANSI cursor movement sequences
   readouterr = capsys.readouterr
   def _cleanout():
     captured = readouterr()

@@ -14,13 +14,18 @@ def test_basic_selection(session_tmp_path):
 
 def test_toggle_selected(capturable_interactive_path_selector, ANSI_capsys):
   with capturable_interactive_path_selector() as ips:
+    ips.selection={}
+    ips.subselection=ips.selection
+    ips.toggle_selected()
     ips.toggle_selected()
   out, err = ANSI_capsys.readouterr()
-  assert out == '> file'
+  assert out == '> +file> file'
 
 
 def test_draw_page(capturable_interactive_path_selector, ANSI_capsys):
   with capturable_interactive_path_selector() as ips:
+    ips.selection={}
+    ips.subselection=ips.selection
     ips.draw_page()
   out, err = ANSI_capsys.readouterr()
   assert '1/4\n file\n hash/\n hidden/\n nest/> file' in out
@@ -85,6 +90,8 @@ def test_hidden_true(capturable_interactive_path_selector, ANSI_capsys):
 
 def test_dir_first_false(capturable_interactive_path_selector, ANSI_capsys):
   with capturable_interactive_path_selector(dirs_first=False) as ips:
+    ips.selection={}
+    ips.subselection=ips.selection
     ips.select_or_descend()
   out, err = ANSI_capsys.readouterr()
   assert out == '> +file'

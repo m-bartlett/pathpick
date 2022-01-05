@@ -30,6 +30,9 @@
 ## Install
 
 ### Standalone Executable Zipped App
+
+**This method does not make any changes to your python site packages.**
+
 This installation method uses the `zipapp` module. Python can execute a zip of python files so long as the first bytes of the zip are a hashbang (e.g. `#!/usr/bin/python`) and the zip has the executable bit set.
 
 To install an executable named `pathpick` to `/usr/local/bin/` by default, run:
@@ -40,7 +43,9 @@ Modify the `PREFIX` environment variable to change this:
 
     PREFIX=~/.local make install
 
-Ensure `$PREFIX/bin` is in your `$PATH` for easy execution
+Ensure `$PREFIX/bin` is in your `$PATH` for easy execution, and verify such with:
+
+    pathpick --version
 
 ### Python Module
 
@@ -64,6 +69,8 @@ or alternatively
 
 
 ## Customization
+  - --config
+  - config.ini
 
 ## Tests
 If you have pytest installed, simply execute `pytest` in the root of this repository.

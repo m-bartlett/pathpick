@@ -61,8 +61,8 @@ def main():
   )
 
   parser.add_argument(
-    "--config", type=str,
-    help="path to style configuration file"
+    "--config", "--config-file", type=str,
+    help="path to configuration file"
   )
 
   args = parser.parse_args()
