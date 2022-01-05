@@ -86,19 +86,20 @@ def main():
   with InteractivePathSelector( root = args.root,
                                 show_hidden = args.show_hidden,
                                 dirs_first  = args.dirs_first,
-                                styles      = config['style']  ) as fsp:
-    fsp.draw_page()
+                                style      = config['style']  ) as ips:
+    ips.draw_page()
 
     try:
-      while fsp.read_key(): continue
+      while ips.read_key(): continue
     except KeyboardInterrupt:
       sys.exit(1)
 
+
     if args.json:
       import json
-      selection_output = json.dumps(fsp.get_selection_json(), separators=(',', ':'))
+      selection_output = json.dumps(ips.get_selection_dict(), separators=(',', ':'))
     else:
-      selection_output = '\n'.join(fsp.get_selection_paths())
+      selection_output = '\n'.join(ips.get_selection_paths())
 
   print(selection_output)
 

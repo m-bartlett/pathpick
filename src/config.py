@@ -15,7 +15,7 @@ default_config = {
             'inactive':          {'prefix': ' '},
             'unselected':        {'prefix': ''},
             'selected':          {'bold': True, 'foreground': 4, 'prefix': '+'},
-            'children_selected': {'bold': True, 'foreground': 6, 'prefix': '~'},
+            'nested_selected': {'bold': True, 'foreground': 6, 'prefix': '~'},
             'truncated':         {'prefix': '...', 'suffix': '...'},
             'header':            {'reverse': True},
             'file':              {},
@@ -98,5 +98,6 @@ __all__ = [
   package_directory,
   package_name,
   default_config_path,
-  user_config_file_paths
+  user_config_file_paths,
+  default_config
 ]
