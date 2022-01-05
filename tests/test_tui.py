@@ -83,7 +83,7 @@ def test_hidden_true(capturable_interactive_path_selector, ANSI_capsys):
 
   out, err = ANSI_capsys.readouterr()
   assert ips.subselection == {'.1':True,'.2':True,'.3':True}
-  assert ips.get_selection_dict() == {'hidden': {'.1': True, '.2': True, '.3': True}}
+  assert ips.get_selection_dict() == {'hidden':{'.1':True,'.2':True,'.3':True}}
   assert 'hidden' in out
   assert all(s in out for s in ['.1', '.2', '.3'])
 
@@ -99,6 +99,8 @@ def test_dir_first_false(capturable_interactive_path_selector, ANSI_capsys):
 
 def test_dir_first_true(capturable_interactive_path_selector, ANSI_capsys):
   with capturable_interactive_path_selector(dirs_first=True) as ips:
+    ips.selection={}
+    ips.subselection=ips.selection
     ips.select_or_descend()
   out, err = ANSI_capsys.readouterr()
   assert out != '> +file'
@@ -107,19 +109,23 @@ def test_dir_first_true(capturable_interactive_path_selector, ANSI_capsys):
 
 def test_alt_style(capturable_interactive_path_selector, ANSI_capsys):
   style = { 'active':     {'prefix': '-->', 'suffix': '<--'},
-            'inactive':   {'prefix': ' '},
+            'inactive':   {'prefix': '<--', 'suffix': '-->'},
             'unselected': {'prefix': '?', 'suffix': '?'},
-            'selected': {'prefix': '!', 'suffix': '!'}}
+            'selected':   {'prefix': '!', 'suffix': '!'}}
   with capturable_interactive_path_selector( dirs_first=False,
                                              style=style ) as ips:
-    ips.select_or_descend()
+    ips.selection={}
+    ips.subselection=ips.selection
+    ips.refresh()
     ips.select_or_descend()
     ips.row_down()
     ips.toggle_selected()
   out, err = ANSI_capsys.readouterr()
   assert all( s in out for s in [ '-->?file?<--',
                                   '-->!file!<--',
-                                  '!file!',
+                                  '<--!file!-->',
+                                  '<--?hash/?-->',
+                                  '<--?hidden/?-->',
                                   '-->?hash/?<--',
                                   '-->!hash/!<--' ] )
 
