@@ -1,5 +1,5 @@
 # https://makefiletutorial.com
-.PHONY: all run clean uninstall
+.PHONY: all run clean uninstall test
 
 TARGET := pathpick
 SHELL := /bin/bash
@@ -20,15 +20,13 @@ run:
 clean:
 	$(PYTHON) setup.py clean
 	find . -type f -name '*.pyc' -delete
+	find . -type d -name '__pycache__' -delete
+	find . -name '*.egg-info' -delete
 	rm -rfv \
-		__pycache__               \
-		.pytest_cache             \
-		build                     \
-		dist                      \
-		*.egg-info                \
-		$(SOURCE_DIR)/__pycache__ \
-		$(SOURCE_DIR)/*.egg-info  \
-		$(BUILD_DIR)              \
+		.pytest_cache \
+		build         \
+		dist          \
+		$(BUILD_DIR)  \
 		$(TARGET)
 
 setupinstall: clean
@@ -56,3 +54,13 @@ install: $(TARGET)
 
 uninstall:
 	rm $(PREFIX)/bin/$(TARGET)
+
+test:
+	@VENV=$(shell mktemp -d); \
+	trap "rm -rf $$VENV" EXIT; \
+	python3 -m venv $$VENV --symlinks; \
+	source $$VENV/bin/activate; \
+	pip --disable-pip-version-check install -q pytest; \
+	pytest -v; \
+	deactivate
+	@make --quiet clean &>/dev/null

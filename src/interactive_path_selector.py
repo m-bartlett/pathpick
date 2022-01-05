@@ -1,5 +1,5 @@
 import pathlib
-from . import style
+from .style import Style
 from .filetype import filetype
 from .interactive_terminal_application import *
 
@@ -21,7 +21,7 @@ class InteractivePathSelector(InteractiveTerminalApplication):
   page_start = 0
   page_end   = 0
   page_info  = ''
-  styles     = {}
+  style      = {}
 
 
   @staticmethod
@@ -54,11 +54,15 @@ class InteractivePathSelector(InteractiveTerminalApplication):
                 root        = None,
                 show_hidden = False,
                 dirs_first  = False,
-                styles      = {} ):
+                style       = {} ):
     super().__init__()
 
-    for k, v in styles.items():
-      self.styles[k] = style.Style(**v)
+    if not style:
+      from .config import default_config
+      style = default_config['style']
+
+    for k, v in style.items():
+      self.style[k] = Style(**v)
 
     if root and root != '.':
       root = pathlib.Path(root).expanduser().resolve()
@@ -101,7 +105,7 @@ class InteractivePathSelector(InteractiveTerminalApplication):
       '\033[D': self.ascend,                  # left
       '\033[5': self.page_up,                 # pageup
       '\033[6': self.page_down,               # pagedown
-      '\x01  ': self.toggled_all_selected,    # ctrl-a
+      '\x01  ': self.toggle_all_selected,    # ctrl-a
       '\x04  ': self.toggle_show_dirs_first,  # ctrl-d
       '\x08  ': self.toggle_show_hidden,      # ctrl-h
       '\x12  ': self.refresh_manual,          # ctrl-r
@@ -123,7 +127,7 @@ class InteractivePathSelector(InteractiveTerminalApplication):
 
   def truncate_right_to_width(self, s, width):
     if len(s) > width:
-      truncated = self.styles['truncated']
+      truncated = self.style['truncated']
       return s[:width-truncated.suffix_length] + truncated.suffix
     else:
       return s
@@ -131,7 +135,7 @@ class InteractivePathSelector(InteractiveTerminalApplication):
 
   def truncate_left_to_width(self, s, width):
     if len(s) > width:
-      truncated = self.styles['truncated']
+      truncated = self.style['truncated']
       return truncated.prefix + s[-width+truncated.prefix_length:]
     else:
       return s
@@ -174,7 +178,7 @@ class InteractivePathSelector(InteractiveTerminalApplication):
 
 
   def draw_header_info(self):
-    _style    = self.styles['header']
+    _style    = self.style['header']
     row_info  = f"   {self.index + self.path_list_any}/{self.path_list_len}{self.page_info}"
     width     = self.WIDTH - len(row_info) - _style.length
     path      = self.truncate_left_to_width(str(self.cwd), width)
@@ -183,7 +187,7 @@ class InteractivePathSelector(InteractiveTerminalApplication):
 
 
   def draw_header_alert(self, message):
-    _style  = self.styles['header']
+    _style  = self.style['header']
     width   = self.WIDTH - _style.length
     message = self.truncate_left_to_width(message, width).center(width)
     self.draw_header(_style.format(message))
@@ -196,21 +200,21 @@ class InteractivePathSelector(InteractiveTerminalApplication):
     path_name = path.name
 
     selected = self.subselection.get(path_name, False)
-    row_style = style.Style()
-    row_style.apply(self.styles[filetype(path)])
+    row_style = Style()
+    row_style.apply(self.style[filetype(path)])
 
     # if isinstance(selected, dict) and True in selected.values():
     if isinstance(selected, dict) and selected:
-      row_style.apply(self.styles['nested_selected'])
+      row_style.apply(self.style['nested_selected'])
     elif selected:
-      row_style.apply(self.styles['selected'])
+      row_style.apply(self.style['selected'])
     else:
-      row_style.apply(self.styles['unselected'])
+      row_style.apply(self.style['unselected'])
       
     if active:
-      row_style.apply(self.styles['active'])
+      row_style.apply(self.style['active'])
     else:
-      row_style.apply(self.styles['inactive'])
+      row_style.apply(self.style['inactive'])
 
     row_style.reset = True
     row_style.update_template()
@@ -298,7 +302,7 @@ class InteractivePathSelector(InteractiveTerminalApplication):
     self.draw_cursor()
 
 
-  def toggled_all_selected(self): # TO-DO del unselect
+  def toggle_all_selected(self): # TO-DO del unselect
     all_selected = all(self.subselection.get(path.name, False) for path in self.path_list)
     if all_selected:
       message ="All deselected"
@@ -394,15 +398,16 @@ class InteractivePathSelector(InteractiveTerminalApplication):
 
 
   @classmethod
-  def _nested_dict_to_path_json(cls, selection: dict):
+  def _nested_dict_to_path_dict(cls, selection: dict):
     true_selection = {}
     for k,v in selection.items():
       if v is True:
         true_selection[k] = v
       elif isinstance(v, dict):
-        true_selection[k] = cls._nested_dict_to_path_json(v)
+        if v:
+          true_selection[k] = cls._nested_dict_to_path_dict(v)
     return true_selection
 
 
-  def get_selection_json(self):
-    return self._nested_dict_to_path_json(self.selection)
+  def get_selection_dict(self):
+    return self._nested_dict_to_path_dict(self.selection)
