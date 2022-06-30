@@ -9,4 +9,4 @@ StatMask2FileType = {
 }
 
 def filetype(pathobj):
-    return StatMask2FileType.get(pathobj.lstat().st_mode & 0xf000, 0x8000)
+    return StatMask2FileType.get(pathobj.lstat().st_mode & 0xf000, 'file')

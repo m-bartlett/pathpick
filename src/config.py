@@ -11,20 +11,20 @@ default_config = {
                'relative':    False,
                'show_hidden': False,
                'verbose':     False },
- 'style': { 'active':            {'bold': True, 'prefix': '> ', 'reset': False},
-            'inactive':          {'prefix': ' '},
-            'unselected':        {'prefix': ''},
-            'selected':          {'bold': True, 'foreground': 4, 'prefix': '+'},
+ 'style': { 'active':          {'bold': True, 'prefix': '> ', 'reset': False},
+            'inactive':        {'prefix': ' '},
+            'unselected':      {'prefix': ''},
+            'selected':        {'bold': True, 'foreground': 4, 'prefix': '+'},
             'nested_selected': {'bold': True, 'foreground': 6, 'prefix': '~'},
-            'truncated':         {'prefix': '...', 'suffix': '...'},
-            'header':            {'reverse': True},
-            'file':              {},
-            'directory':         {'foreground': 3, 'suffix': '/'},
-            'symlink':           {'suffix': '@'},
-            'blockdevice':       {},
-            'chardevice':        {},
-            'fifo':              {'suffix': '|'},
-            'socket':            {'suffix': '='} }
+            'truncated':       {'prefix': '...', 'suffix': '...'},
+            'header':          {'reverse': True},
+            'file':            {},
+            'directory':       {'foreground': 3, 'suffix': '/'},
+            'symlink':         {'suffix': '@'},
+            'blockdevice':     {},
+            'chardevice':      {},
+            'fifo':            {'suffix': '|'},
+            'socket':          {'suffix': '='} }
 }
 
 package_directory = Path(__file__).resolve().parent
@@ -35,7 +35,7 @@ home = Path.home()
 config_parser = ConfigParser()
 nested_option_regex = re.compile(r'[.:/]')
 
-if (xdg_config_home := os.getenv('xdg_config_home', False)):
+if (xdg_config_home := os.getenv('XDG_CONFIG_HOME', False)):
   config_home = Path(xdg_config_home).expanduser()
 else:
   config_home = home / '.config'

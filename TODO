@@ -1,13 +1,20 @@
 [ ] input json for pre-populated selection in interactive session
     [ ] and accept pathlist input?
+    pathlist to nested dict -> recurse tree with Path / leaf -> filter tree with leaf.exists()
 
 [ ] how to handle absolute vs relative json output? And input?
+    - is_relative_to()
 
 [ ] config file defaults
 
 [ ] convert between json and pathlist outputs
 
 [ ] README about+examples
+
+[ ] Allow ascending up from initial root
+    [ ] Keybind to return to initial root -> ctrl-0
+
+[ ] Configurable keymap
 
 [ ] Automated version number:
     [ ] --version

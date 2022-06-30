@@ -83,10 +83,10 @@ def main():
     printerr(config)
 
   selection_output = ''
-  with InteractivePathSelector( root = args.root,
+  with InteractivePathSelector( root        = args.root,
                                 show_hidden = args.show_hidden,
                                 dirs_first  = args.dirs_first,
-                                style      = config['style']  ) as ips:
+                                style       = config['style']  ) as ips:
     ips.draw_page()
 
     try:

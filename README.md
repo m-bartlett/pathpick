@@ -18,7 +18,9 @@
 
 ## About
 
-### Usage Examples
+## Usage
+
+### Examples
 
 
 ## Dependencies

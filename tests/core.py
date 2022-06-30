@@ -46,7 +46,7 @@ def capturable_interactive_path_selector(monkeypatch, session_tmp_path):
     kwargs['root'] = session_tmp_path.absolute()
     ips = InteractivePathSelector(**kwargs)
     _puts = ips.puts
-    monkeypatch.setattr(ips, "get_terminal_size", lambda *x: (40,25))
+    monkeypatch.setattr(ips, "get_terminal_size", lambda *x: (25,40))
     monkeypatch.setattr(ips, "puts", lambda *x:None)
     ips.launch()
     monkeypatch.setattr(ips, "puts", _monkeypatch_puts)

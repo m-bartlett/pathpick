@@ -1,4 +1,6 @@
 # https://makefiletutorial.com
+# https://devhints.io/makefile
+
 .PHONY: all run clean uninstall test
 
 TARGET := pathpick
@@ -19,10 +21,10 @@ run:
 
 clean:
 	$(PYTHON) setup.py clean
-	find . -type f -name '*.pyc' -delete
-	find . -type d -name '__pycache__' -delete
-	find . -name '*.egg-info' -delete
-	rm -rfv \
+	-find . -type f -name '*.pyc' -delete
+	-find . -type d -name '__pycache__' -delete
+	-find . -name '*.egg-info' -exec rm -rfv {} \;
+	-rm -rfv \
 		.pytest_cache \
 		build         \
 		dist          \
@@ -31,6 +33,12 @@ clean:
 
 setupinstall: clean
 	$(PYTHON) setup.py install
+
+cool:
+	nice:
+		echo nice
+	sweet:
+		echo sweet
 
 pipinstall: clean
 	pip install -U . --use-feature=in-tree-build
@@ -50,17 +58,17 @@ app: $(TARGET)
 
 install: $(TARGET)
 	install -m 755 $(TARGET) $(PREFIX)/bin/$(TARGET)
-	make clean
+	$(MAKE) clean
 
 uninstall:
 	rm $(PREFIX)/bin/$(TARGET)
 
 test:
-	@VENV=$(shell mktemp -d); \
-	trap "rm -rf $$VENV" EXIT; \
-	python3 -m venv $$VENV --symlinks; \
-	source $$VENV/bin/activate; \
+	@VENV=$(shell mktemp -d);                          \
+	trap "rm -rf $$VENV" EXIT;                         \
+	python3 -m venv $$VENV --symlinks;                 \
+	source $$VENV/bin/activate;                        \
 	pip --disable-pip-version-check install -q pytest; \
-	pytest -v; \
+	pytest -v;                                         \
 	deactivate
-	@make --quiet clean &>/dev/null
+	@$(MAKE) --quiet clean &>/dev/null

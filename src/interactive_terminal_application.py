@@ -18,19 +18,13 @@ class InteractiveTerminalApplication():
   HEIGHT_1 = 24  # cache HEIGHT - 1 for graphical calculations
 
 
-  @staticmethod
-  def ioctl_GWINSZ(fd):
-    try:
-      return struct.unpack('hh', fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234'))
-    except:
-      return
-
-
   def get_terminal_size(self):
-    if not (cr := self.ioctl_GWINSZ(self.fd)):
-      try:    cr = shutil.get_terminal_size()
-      except: cr = (os.getenv('LINES', 25), os.getenv('COLUMNS', 80))
-    return int(cr[1]), int(cr[0])
+    try: terminal_size = struct.unpack('hh', fcntl.ioctl(self.fd, termios.TIOCGWINSZ, '1234'))
+    except: pass
+    if not terminal_size:
+      try:    terminal_size = shutil.get_terminal_size()
+      except: terminal_size = (os.getenv('LINES', 25), os.getenv('COLUMNS', 80))
+    return tuple(map(int, terminal_size))
   
 
   def puts(self, s):
@@ -39,7 +33,7 @@ class InteractiveTerminalApplication():
     
   
   def resize(self, *args):
-    self.WIDTH, self.HEIGHT = self.get_terminal_size()
+    self.HEIGHT, self.WIDTH = self.get_terminal_size()
     self.HEIGHT_1 = self.HEIGHT - 1
 
 
